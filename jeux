@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OPÉRATION ACIER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{
+  --ink:#0c0d09;
+  --panel:#181a12;
+  --panel2:#1f2217;
+  --line:#3a3d29;
+  --khaki:#9a9c66;
+  --khaki-dim:#6c6e48;
+  --amber:#e8a33d;
+  --amber-dim:#b3791f;
+  --red:#c1473b;
+  --green:#7fae5c;
+  --gem:#4fc3c9;
+  --paper:#ece7d6;
+  --paper-dim:#a9a690;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-family:'Oswald',sans-serif;overflow:hidden;height:100%;}
+.display{font-family:'Teko',sans-serif;letter-spacing:0.5px;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;}
+
+/* HEADER */
+#hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;background:linear-gradient(180deg,#1c1e14,#13150d);
+  border-bottom:2px solid var(--line);flex-shrink:0;z-index:10;
+  position:relative;
+}
+#hdr::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;
+  background:repeating-linear-gradient(90deg,var(--amber-dim) 0 10px,transparent 10px 20px);opacity:.5;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo .star{width:26px;height:26px;background:var(--amber);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);flex-shrink:0;}
+.logo h1{font-size:26px;margin:0;font-weight:700;letter-spacing:2px;color:var(--paper);}
+.stats{display:flex;gap:10px;flex-wrap:wrap;}
+.stat{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+  padding:5px 12px;border-radius:3px;font-size:14px;}
+.stat .ic{font-size:15px;}
+.stat .v{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--amber);}
+.stat.gem .v{color:var(--gem);}
+.stat.pop .v{color:var(--green);}
+
+/* NAV */
+#nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;}
+.navbtn{flex:1;padding:10px 6px;text-align:center;background:none;border:none;color:var(--khaki-dim);
+  font-family:'Teko',sans-serif;font-size:19px;letter-spacing:1.5px;cursor:pointer;border-right:1px solid var(--line);
+  transition:.15s;text-transform:uppercase;}
+.navbtn:last-child{border-right:none;}
+.navbtn:hover{color:var(--paper);background:var(--panel2);}
+.navbtn.active{color:var(--ink);background:var(--amber);font-weight:700;}
+
+/* MAIN */
+#main{flex:1;position:relative;overflow:hidden;}
+.view{position:absolute;inset:0;display:none;}
+.view.active{display:block;}
+
+/* MAP VIEW */
+#mapCanvas{width:100%;height:100%;display:block;cursor:grab;}
+#mapHint{position:absolute;top:10px;left:10px;background:rgba(12,13,9,.7);border:1px solid var(--line);
+  padding:6px 10px;font-size:12px;color:var(--khaki);border-radius:3px;pointer-events:none;}
+#sidePanel{
+  position:absolute;top:0;right:0;width:300px;max-width:88vw;height:100%;background:rgba(15,16,10,.95);
+  border-left:2px solid var(--line);transform:translateX(100%);transition:transform .25s;
+  display:flex;flex-direction:column;z-index:5;
+}
+#sidePanel.open{transform:translateX(0);}
+#sidePanel .sp-head{padding:16px;border-bottom:1px solid var(--line);}
+#sidePanel .sp-head h2{margin:0;font-size:30px;display:flex;justify-content:space-between;align-items:center;}
+#sidePanel .sp-close{cursor:pointer;color:var(--khaki-dim);font-size:18px;font-family:sans-serif;}
+#sidePanel .sp-body{padding:16px;flex:1;overflow-y:auto;}
+#sidePanel .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;}
+#sidePanel .row b{color:var(--amber);}
+.btn{
+  display:block;width:100%;text-align:center;padding:12px;margin-top:14px;background:var(--amber);
+  color:var(--ink);border:none;font-family:'Teko',sans-serif;font-size:22px;letter-spacing:1px;
+  text-transform:uppercase;cursor:pointer;border-radius:3px;font-weight:700;
+}
+.btn:disabled{background:#4a4a3a;color:#8a8a7a;cursor:not-allowed;}
+.btn.secondary{background:var(--panel2);color:var(--paper);border:1px solid var(--line);}
+.btn.danger{background:var(--red);color:#fff;}
+
+/* GRID PANELS for shop/quests/clan/leaderboard */
+.pview{height:100%;overflow-y:auto;padding:16px;}
+.section-title{font-size:28px;margin:18px 0 8px;color:var(--amber);border-bottom:1px solid var(--line);padding-bottom:4px;}
+.section-title:first-child{margin-top:0;}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:6px;}
+.card h3{margin:0;font-size:19px;color:var(--paper);display:flex;justify-content:space-between;}
+.card p{margin:0;font-size:12px;color:var(--paper-dim);line-height:1.4;}
+.card .price{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--amber);}
+.card .price.gemp{color:var(--gem);}
+.card button{margin-top:auto;padding:8px;background:var(--khaki);color:var(--ink);border:none;font-weight:700;
+  font-family:'Oswald';font-size:13px;border-radius:3px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;}
+.card button:disabled{background:#4a4a3a;color:#8a8a7a;cursor:not-allowed;}
+.owned-badge{font-size:11px;background:var(--panel2);border:1px solid var(--line);padding:2px 6px;border-radius:10px;color:var(--khaki);}
+
+.quest-row{display:flex;justify-content:space-between;align-items:center;background:var(--panel);
+  border:1px solid var(--line);border-radius:4px;padding:10px 14px;margin-bottom:8px;}
+.quest-row.done{opacity:.5;}
+.quest-row .qtxt{font-size:14px;}
+.quest-row .qreward{font-size:13px;color:var(--amber);font-family:'JetBrains Mono',monospace;}
+
+#clanBox{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;max-width:480px;}
+#clanList{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+#clanList .member{display:flex;justify-content:space-between;font-size:13px;padding:4px 8px;background:var(--panel2);border-radius:3px;}
+
+table.lb{width:100%;border-collapse:collapse;max-width:680px;}
+table.lb th{text-align:left;font-family:'Teko';font-size:18px;color:var(--khaki);border-bottom:1px solid var(--line);padding:6px 8px;}
+table.lb td{padding:7px 8px;font-size:14px;border-bottom:1px solid #24261a;}
+table.lb tr.me{background:rgba(232,163,61,.12);}
+table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;}
+
+/* battle overlay */
+#battleOverlay{position:absolute;inset:0;background:rgba(8,9,6,.92);display:none;align-items:center;justify-content:center;
+  flex-direction:column;z-index:20;}
+#battleOverlay.show{display:flex;}
+#battleResult{font-family:'Teko';font-size:60px;letter-spacing:3px;text-transform:uppercase;margin-top:18px;}
+#battleResult.win{color:var(--green);}
+#battleResult.lose{color:var(--red);}
+#battleSub{font-size:15px;color:var(--khaki);margin-top:4px;}
+
+/* login modal */
+#loginModal{position:fixed;inset:0;background:rgba(8,9,6,.96);display:flex;align-items:center;justify-content:center;z-index:100;}
+#loginBox{background:var(--panel);border:1px solid var(--line);padding:30px;width:320px;max-width:90vw;border-radius:6px;text-align:center;}
+#loginBox h2{margin-top:0;font-size:32px;color:var(--amber);}
+#loginBox input{width:100%;padding:10px;margin:10px 0;background:var(--ink);border:1px solid var(--line);color:var(--paper);
+  font-family:'Oswald';border-radius:3px;font-size:15px;}
+
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+@media(max-width:640px){
+  .logo h1{font-size:20px;}
+  .stat{padding:4px 8px;font-size:12px;}
+  #sidePanel{width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="loginModal">
+  <div id="loginBox">
+    <h2>OPÉRATION ACIER</h2>
+    <p style="color:var(--paper-dim);font-size:13px;">Crée un compte ou connecte-toi pour garder ta progression en ligne, rejoindre un clan et apparaître dans le classement mondial.</p>
+    <input id="nameInput" maxlength="16" placeholder="Nom de commandant">
+    <input id="passwordInput" type="password" maxlength="32" placeholder="Mot de passe">
+    <div id="loginStatus" style="min-height:18px;font-size:12px;color:var(--paper-dim);margin-top:4px;"></div>
+    <button class="btn" id="loginBtn">ENTRER EN CAMPAGNE</button>
+    <button class="btn secondary" id="registerBtn" style="margin-top:10px;">CRÉER LE COMPTE</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="hdr">
+    <div class="logo"><div class="star"></div><h1 class="display">OPÉRATION ACIER</h1></div>
+    <div class="stats">
+      <div class="stat pop"><span class="ic">👥</span><span class="v" id="statPop">0</span></div>
+      <div class="stat money"><span class="ic">💰</span><span class="v" id="statMoney">0</span></div>
+      <div class="stat gem"><span class="ic">💎</span><span class="v" id="statGem">0</span></div>
+      <div class="stat"><span class="ic">⚔️</span><span class="v" id="statPower">0</span></div>
+    </div>
+  </div>
+
+  <div id="nav">
+    <button class="navbtn active" data-view="map">Carte</button>
+    <button class="navbtn" data-view="shop">Boutique</button>
+    <button class="navbtn" data-view="quests">Quêtes</button>
+    <button class="navbtn" data-view="clan">Clan</button>
+    <button class="navbtn" data-view="board">Classement</button>
+  </div>
+
+  <div id="main">
+    <div class="view active" id="view-map">
+      <canvas id="mapCanvas"></canvas>
+      <div id="mapHint">Glisse pour pivoter • Clique une base ennemie (🟡 disponible · 🟢 conquise · ⚪ verrouillée)</div>
+      <button class="btn" id="nextMissionBtn" style="position:absolute;bottom:16px;left:16px;width:auto;padding:10px 18px;font-size:18px;margin:0;">Mission suivante ▶</button>
+      <div id="sidePanel">
+        <div class="sp-head"><h2 id="spTitle">—<span class="sp-close" id="spClose">✕</span></h2></div>
+        <div class="sp-body" id="spBody"></div>
+      </div>
+      <div id="battleOverlay">
+        <canvas id="battleCanvas" width="280" height="160" style="image-rendering:pixelated;"></canvas>
+        <div id="battleResult"></div>
+        <div id="battleSub"></div>
+        <button class="btn secondary" id="battleClose" style="width:200px;display:none;">Continuer</button>
+      </div>
+    </div>
+
+    <div class="view" id="view-shop"><div class="pview" id="shopBody"></div></div>
+    <div class="view" id="view-quests"><div class="pview" id="questsBody"></div></div>
+    <div class="view" id="view-clan"><div class="pview" id="clanBody"></div></div>
+    <div class="view" id="view-board"><div class="pview" id="boardBody"></div></div>
+  </div>
+</div>
+
+<script>
+/* ============================ DATA ============================ */
+const UNIT_DEFS = [
+  {id:'infantry', name:'Infanterie',     power:5,   cost:100,  desc:'L\'épine dorsale de toute opération.'},
+  {id:'armor',    name:'Blindé léger',   power:30,  cost:500,  desc:'Perce les lignes ennemies rapidement.'},
+  {id:'heavy',    name:'Char lourd',     power:90,  cost:1500, desc:'Puissance de feu écrasante sur le terrain.'},
+  {id:'jet',      name:'Chasseur',       power:220, cost:4000, desc:'Supériorité aérienne totale.'},
+  {id:'carrier',  name:'Porte-avions',   power:500, cost:9000, desc:'Projette ta puissance sur tout le globe.'},
+];
+const FACTORY_DEFS = [
+  {id:'f1', name:'Usine de munitions', cost:800,  income:2, desc:'+2 argent / seconde, en continu.'},
+  {id:'f2', name:'Raffinerie',         cost:2500, income:8, desc:'+8 argent / seconde, en continu.'},
+  {id:'f3', name:'Complexe industriel',cost:6000, income:20, desc:'+20 argent / seconde, en continu.'},
+];
+const BLACKMARKET_DEFS = [
+  {id:'crate', name:'Caisse d\'élite',     gemCost:5,  desc:'Octroie aléatoirement 1 à 3 unités gratuites.'},
+  {id:'vets',  name:'Pack de vétérans',    gemCost:10, desc:'+150 de puissance permanente instantanée.'},
+  {id:'convoy',name:'Convoi clandestin',   gemCost:20, desc:'+2500 argent immédiatement.'},
+];
+const QUEST_DEFS = [
+  {id:'q1', txt:'Remporter ta première bataille', reward:{money:100}, check:p=>p.levelsCompleted.some(v=>v)},
+  {id:'q2', txt:'Posséder 5 unités au total', reward:{gems:3}, check:p=>totalUnits(p)>=5},
+  {id:'q3', txt:'Atteindre 1000 habitants', reward:{gems:10}, check:p=>p.population>=1000},
+  {id:'q4', txt:'Rejoindre ou créer un clan', reward:{gems:5}, check:p=>!!p.clan},
+  {id:'q5', txt:'Remporter 10 batailles', reward:{gems:15,money:500}, check:p=>p.levelsCompleted.filter(Boolean).length>=10},
+  {id:'q6', txt:'Construire ta première usine', reward:{money:300}, check:p=>(p.factories.f1+p.factories.f2+p.factories.f3)>0},
+  {id:'q7', txt:'Atteindre 5000 de puissance', reward:{gems:20}, check:p=>computePower(p)>=5000},
+];
+const LEVEL_COUNT = 20;
+function levelPower(i){ return Math.round(25 * Math.pow(1.25, i)); }
+function levelReward(i){ return Math.round(60 * (i+1)); }
+const LEVEL_NAMES = ['Avant-poste Nord','Col de Brèche','Plaine Rouge','Pont d\'Ardenne','Ravin Gris','Base Hurlevent',
+  'Forteresse Marno','Vallée d\'Acier','Bastion Sud','Crête des Loups','Carrefour Noir','Citadelle Volkov',
+  'Ligne Méridienne','Fjord de Glace','Désert Pâle','Mont Carbure','Delta Tempête','Bunker Oméga',
+  'Frontière Ultime','Capitale Ennemie'];
+
+
+/* ============================ STORAGE / PROFILE ============================ */
+let profile = null;
+let username = null;
+let authToken = localStorage.getItem('oa_token') || '';
+
+function setLoginStatus(msg, color){
+  const el = document.getElementById('loginStatus');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.style.color = color || 'var(--paper-dim)';
+}
+
+async function apiRequest(path, options={}){
+  const headers = Object.assign({}, options.headers || {});
+  if(!(options.body instanceof FormData) && options.body !== undefined) headers['Content-Type'] = 'application/json';
+  if(authToken) headers.Authorization = `Bearer ${authToken}`;
+  const res = await fetch(path, {
+    method: options.method || 'GET',
+    headers,
+    body: options.body instanceof FormData ? options.body : (options.body !== undefined ? JSON.stringify(options.body) : undefined),
+  });
+  const payload = await res.json().catch(()=>null);
+  if(!res.ok) throw new Error(payload && payload.error ? payload.error : 'Erreur réseau');
+  return payload;
+}
+
+function totalUnits(p){ return UNIT_DEFS.reduce((s,u)=>s+p.units[u.id],0); }
+function computePower(p){
+  let pw = p.bonusPower||0;
+  UNIT_DEFS.forEach(u=> pw += p.units[u.id]*u.power );
+  return Math.round(pw);
+}
+function factoryIncomePerSecond(p){
+  let inc=0; FACTORY_DEFS.forEach(f=> inc += p.factories[f.id]*f.income ); return inc;
+}
+function defaultProfile(name){
+  return {
+    name, clan:null, money:2000, gems:25, population:100,
+    units:{infantry:0,armor:0,heavy:0,jet:0,carrier:0},
+    factories:{f1:0,f2:0,f3:0},
+    bonusPower:0,
+    levelsCompleted: new Array(LEVEL_COUNT).fill(false),
+    questsClaimed:{},
+    lastTick: Date.now(),
+  };
+}
+async function loadProfile(name){
+  try{
+    if(!authToken) return defaultProfile(name);
+    const res = await apiRequest('/api/me');
+    if(res && res.profile){
+      const p = res.profile;
+      const def = defaultProfile(p.name || name);
+      for(const k in def){ if(p[k]===undefined) p[k]=def[k]; }
+      return p;
+    }
+  }catch(e){}
+  return defaultProfile(name);
+}
+async function saveProfile(){
+  try{ await apiRequest('/api/me', { method:'PUT', body:{ profile } }); }catch(e){ console.error('save failed',e); }
+}
+
+/* shared leaderboard */
+async function pushToLeaderboard(){
+  try{ await saveProfile(); }catch(e){ console.error(e); }
+}
+async function fetchLeaderboard(){
+  try{
+    const res = await apiRequest('/api/leaderboard');
+    return res.entries || [];
+  }catch(e){ return []; }
+}
+
+/* shared clans */
+async function getClans(){
+  try{
+    const r = await apiRequest('/api/clans');
+    return r.clans || {};
+  }catch(e){
+    if(e && e.message){ window.__storageError = e.message; }
+  }
+  return {};
+}
+async function saveClans(clans){
+  try{
+    await apiRequest('/api/clans', { method:'PUT', body: clans });
+    return true;
+  }catch(e){
+    console.error('saveClans failed', e);
+    alert('Impossible de sauvegarder le clan : '+(e && e.message ? e.message : 'erreur inconnue')+'. Réessaie dans quelques secondes.');
+    return false;
+  }
+}
+
+/* ============================ THREE.JS MAP ============================ */
+let scene, camera, renderer, raycaster, mouse;
+let levelNodes = [];
+let rotY = 0.4, rotX = -0.45, dragging=false, lastX=0,lastY=0;
+const canvas = document.getElementById('mapCanvas');
+
+function initMap(){
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0c0d09, 0.018);
+  camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
+  renderer.setClearColor(0x0c0d09,1);
+  resizeRenderer();
+
+  const amb = new THREE.AmbientLight(0x6c6e48, 0.9);
+  scene.add(amb);
+  const dir = new THREE.DirectionalLight(0xe8a33d, 1.1);
+  dir.position.set(8,14,6);
+  scene.add(dir);
+
+  // layout nodes in spiral
+  const group = new THREE.Group();
+  for(let i=0;i<LEVEL_COUNT;i++){
+    const ang = i*0.85;
+    const rad = 3 + i*1.55;
+    const x = Math.cos(ang)*rad;
+    const z = Math.sin(ang)*rad;
+    const y = Math.sin(i*0.7)*0.6;
+
+    const baseGeo = new THREE.CylinderGeometry(1.1,1.3,0.5,6);
+    const baseMat = new THREE.MeshStandardMaterial({color:0x3a3d29, flatShading:true});
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.set(x,y,z);
+    group.add(base);
+
+    const towerGeo = new THREE.ConeGeometry(0.55,1.1,4);
+    const towerMat = new THREE.MeshStandardMaterial({color:0x9a9c66, flatShading:true});
+    const tower = new THREE.Mesh(towerGeo, towerMat);
+    tower.position.set(x,y+0.75,z);
+    group.add(tower);
+
+    levelNodes.push({mesh:base, tower, index:i, x,y,z});
+
+    const hitGeo = new THREE.SphereGeometry(1.6, 8, 8);
+    const hitMat = new THREE.MeshBasicMaterial({visible:false});
+    const hitbox = new THREE.Mesh(hitGeo, hitMat);
+    hitbox.position.set(x,y+0.4,z);
+    hitbox.userData.levelIndex = i;
+    group.add(hitbox);
+    levelNodes[levelNodes.length-1].hitbox = hitbox;
+  }
+  scene.add(group);
+  window.__mapGroup = group;
+
+  camera.position.set(0, 18, 24);
+  camera.lookAt(0,0,0);
+
+  raycaster = new THREE.Raycaster();
+  mouse = new THREE.Vector2();
+
+  canvas.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
+  window.addEventListener('pointerup', ()=>dragging=false);
+  window.addEventListener('pointermove', e=>{
+    if(dragging){
+      rotY += (e.clientX-lastX)*0.005;
+      rotX = Math.max(-1.1, Math.min(-0.15, rotX + (e.clientY-lastY)*0.003));
+      lastX=e.clientX; lastY=e.clientY;
+    }
+  });
+  canvas.addEventListener('click', onMapClick);
+  window.addEventListener('resize', resizeRenderer);
+
+  animateMap();
+}
+function resizeRenderer(){
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  renderer.setSize(w,h,false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+function animateMap(){
+  requestAnimationFrame(animateMap);
+  const dist = 30;
+  camera.position.x = Math.sin(rotY)*dist*Math.cos(rotX+1.0);
+  camera.position.z = Math.cos(rotY)*dist*Math.cos(rotX+1.0);
+  camera.position.y = 14 + Math.sin(rotX)*14;
+  camera.lookAt(0,0,0);
+  // pulse towers based on state
+  levelNodes.forEach(n=>{
+    const completed = profile && profile.levelsCompleted[n.index];
+    const unlocked = isUnlocked(n.index);
+    const col = completed ? 0x7fae5c : (unlocked ? 0xe8a33d : 0x4a4d33);
+    n.tower.material.color.setHex(col);
+  });
+  renderer.render(scene, camera);
+}
+function isUnlocked(i){
+  if(i===0) return true;
+  return profile.levelsCompleted[i-1];
+}
+function onMapClick(e){
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse, camera);
+  const meshes = levelNodes.map(n=>n.hitbox);
+  const hits = raycaster.intersectObjects(meshes);
+  if(hits.length){
+    const hit = hits[0].object;
+    const node = levelNodes.find(n=>n.hitbox===hit);
+    if(node) openLevelPanel(node.index);
+  }
+}
+
+/* ============================ SIDE PANEL ============================ */
+const sidePanel = document.getElementById('sidePanel');
+document.getElementById('spClose').onclick = ()=> sidePanel.classList.remove('open');
+
+document.getElementById('nextMissionBtn').onclick = ()=>{
+  const idx = profile.levelsCompleted.findIndex(v=>!v);
+  if(idx===-1){ alert('Toutes les bases sont conquises, bravo commandant !'); return; }
+  openLevelPanel(idx);
+};
+
+function openLevelPanel(i){
+  const unlocked = isUnlocked(i);
+  const done = profile.levelsCompleted[i];
+  const pow = levelPower(i);
+  const rew = levelReward(i);
+  document.getElementById('spTitle').innerHTML = `${LEVEL_NAMES[i]} <span class="sp-close" id="spClose2">✕</span>`;
+  document.getElementById('spClose2').onclick = ()=> sidePanel.classList.remove('open');
+  const myPower = computePower(profile);
+  let body = `
+    <div class="row"><span>Niveau</span><b>${i+1} / ${LEVEL_COUNT}</b></div>
+    <div class="row"><span>Puissance ennemie</span><b>${pow}</b></div>
+    <div class="row"><span>Ta puissance</span><b>${myPower}</b></div>
+    <div class="row"><span>Récompense</span><b>+1 pop · +${rew} 💰</b></div>
+    <div class="row"><span>Statut</span><b>${done?'✅ Conquis':(unlocked?'Disponible':'🔒 Verrouillé')}</b></div>
+  `;
+  document.getElementById('spBody').innerHTML = body;
+  const actionHtml = !unlocked
+    ? `<button class="btn" disabled>Base verrouillée</button>`
+    : `<button class="btn" id="attackBtn">Envoyer l'armée</button>`;
+  document.getElementById('spBody').innerHTML += actionHtml;
+  if(unlocked){
+    document.getElementById('attackBtn').onclick = ()=> launchBattle(i);
+  }
+  sidePanel.classList.add('open');
+}
+
+/* ============================ BATTLE ============================ */
+const overlay = document.getElementById('battleOverlay');
+const bCanvas = document.getElementById('battleCanvas');
+const bCtx = bCanvas.getContext('2d');
+const battleResultEl = document.getElementById('battleResult');
+const battleSubEl = document.getElementById('battleSub');
+const battleCloseBtn = document.getElementById('battleClose');
+
+function launchBattle(i){
+  sidePanel.classList.remove('open');
+  overlay.classList.add('show');
+  battleResultEl.textContent = '';
+  battleResultEl.className = '';
+  battleSubEl.textContent = '';
+  battleCloseBtn.style.display = 'none';
+
+  const myPower = computePower(profile);
+  const enemyPower = levelPower(i);
+  const winChance = Math.min(0.98, Math.max(0.25, (myPower*1.4)/(myPower*1.4+enemyPower)));
+  const win = Math.random() < winChance;
+
+  runBattleAnim(win, ()=>{
+    if(win){
+      profile.levelsCompleted[i] = true;
+      profile.population += 1;
+      profile.money += levelReward(i);
+      battleResultEl.textContent = 'VICTOIRE';
+      battleResultEl.className = 'win';
+      battleSubEl.textContent = `+1 population · +${levelReward(i)} argent`;
+    } else {
+      battleResultEl.textContent = 'ÉCHEC';
+      battleResultEl.className = 'lose';
+      battleSubEl.textContent = `Tes troupes se replient. Renforce-toi avant de réessayer.`;
+    }
+    battleCloseBtn.style.display = 'block';
+    saveProfile();
+    pushToLeaderboard();
+    refreshHUD();
+  });
+}
+battleCloseBtn.onclick = ()=> overlay.classList.remove('show');
+
+function runBattleAnim(win, done){
+  let t=0;
+  const dur=70;
+  function frame(){
+    t++;
+    bCtx.fillStyle = '#0c0d09'; bCtx.fillRect(0,0,280,160);
+    // ground
+    bCtx.fillStyle = '#1f2217'; bCtx.fillRect(0,120,280,40);
+    bCtx.strokeStyle = '#3a3d29'; bCtx.beginPath(); bCtx.moveTo(0,120); bCtx.lineTo(280,120); bCtx.stroke();
+    // player units (left, moving right)
+    const advance = Math.min(1, t/dur);
+    for(let u=0;u<4;u++){
+      const bx = 20 + u*14 + advance*(win?150:80);
+      bCtx.fillStyle = '#e8a33d';
+      bCtx.fillRect(bx, 105 - (u%2)*6, 8, 8);
+    }
+    // enemy units (right)
+    for(let u=0;u<4;u++){
+      const ex = 250 - u*14 - advance*(win?80:150);
+      bCtx.fillStyle = '#c1473b';
+      bCtx.fillRect(ex, 105 - (u%2)*6, 8, 8);
+    }
+    if(t>dur*0.6){
+      bCtx.fillStyle = `rgba(232,163,61,${Math.random()*0.6})`;
+      bCtx.beginPath(); bCtx.arc(140+Math.random()*30-15, 100+Math.random()*15, Math.random()*8+2, 0, 7); bCtx.fill();
+    }
+    if(t<dur){ requestAnimationFrame(frame); } else { done(); }
+  }
+  frame();
+}
+
+/* ============================ NAV ============================ */
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='board') renderBoard();
+    if(btn.dataset.view==='clan') renderClan();
+    if(btn.dataset.view==='quests') renderQuests();
+    if(btn.dataset.view==='shop') renderShop();
+    if(btn.dataset.view==='map') resizeRenderer();
+  };
+});
+
+/* ============================ SHOP ============================ */
+function renderShop(){
+  const el = document.getElementById('shopBody');
+  let html = `<div class="section-title display">Unités militaires</div><div class="cards">`;
+  UNIT_DEFS.forEach(u=>{
+    const owned = profile.units[u.id];
+    const afford = profile.money>=u.cost;
+    html += `<div class="card">
+      <h3>${u.name} <span class="owned-badge">x${owned}</span></h3>
+      <p>${u.desc} — Puissance ${u.power}</p>
+      <div class="price">💰 ${u.cost}</div>
+      <button data-buy-unit="${u.id}" ${afford?'':'disabled'}>Acheter</button>
+    </div>`;
+  });
+  html += `</div><div class="section-title display">Usines (revenu passif)</div><div class="cards">`;
+  FACTORY_DEFS.forEach(f=>{
+    const owned = profile.factories[f.id];
+    const cost = Math.round(f.cost*(1+owned*0.6));
+    const afford = profile.money>=cost;
+    html += `<div class="card">
+      <h3>${f.name} <span class="owned-badge">x${owned}</span></h3>
+      <p>${f.desc}</p>
+      <div class="price">💰 ${cost}</div>
+      <button data-buy-factory="${f.id}" ${afford?'':'disabled'}>Construire</button>
+    </div>`;
+  });
+  html += `</div><div class="section-title display">Marché noir <span style="font-size:13px;color:var(--gem);">💎 gemmes</span></div><div class="cards">`;
+  BLACKMARKET_DEFS.forEach(m=>{
+    const afford = profile.gems>=m.gemCost;
+    html += `<div class="card">
+      <h3>${m.name}</h3>
+      <p>${m.desc}</p>
+      <div class="price gemp">💎 ${m.gemCost}</div>
+      <button data-buy-bm="${m.id}" ${afford?'':'disabled'}>Échanger</button>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+
+  el.querySelectorAll('[data-buy-unit]').forEach(b=>b.onclick=()=>{
+    const u = UNIT_DEFS.find(x=>x.id===b.dataset.buyUnit);
+    if(profile.money>=u.cost){ profile.money-=u.cost; profile.units[u.id]++; afterChange(); renderShop(); }
+  });
+  el.querySelectorAll('[data-buy-factory]').forEach(b=>b.onclick=()=>{
+    const f = FACTORY_DEFS.find(x=>x.id===b.dataset.buyFactory);
+    const cost = Math.round(f.cost*(1+profile.factories[f.id]*0.6));
+    if(profile.money>=cost){ profile.money-=cost; profile.factories[f.id]++; afterChange(); renderShop(); }
+  });
+  el.querySelectorAll('[data-buy-bm]').forEach(b=>b.onclick=()=>{
+    const m = BLACKMARKET_DEFS.find(x=>x.id===b.dataset.buyBm);
+    if(profile.gems>=m.gemCost){
+      profile.gems-=m.gemCost;
+      if(m.id==='crate'){
+        const n = 1+Math.floor(Math.random()*3);
+        for(let k=0;k<n;k++){ const u=UNIT_DEFS[Math.floor(Math.random()*UNIT_DEFS.length)]; profile.units[u.id]++; }
+      } else if(m.id==='vets'){ profile.bonusPower += 150; }
+      else if(m.id==='convoy'){ profile.money += 2500; }
+      afterChange(); renderShop();
+    }
+  });
+}
+
+/* ============================ QUESTS ============================ */
+function renderQuests(){
+  const el = document.getElementById('questsBody');
+  let html = `<div class="section-title display">Quêtes</div>`;
+  QUEST_DEFS.forEach(q=>{
+    const claimed = !!profile.questsClaimed[q.id];
+    const eligible = q.check(profile);
+    const rewardTxt = Object.entries(q.reward).map(([k,v])=> k==='money'?`💰 ${v}`:(k==='gems'?`💎 ${v}`:'')).join('  ');
+    html += `<div class="quest-row ${claimed?'done':''}">
+      <div class="qtxt">${q.txt}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="qreward">${rewardTxt}</div>
+        ${claimed?'<span style="font-size:12px;color:var(--green);">Réclamée</span>'
+          : eligible ? `<button class="btn" style="margin:0;padding:6px 14px;font-size:15px;width:auto;" data-claim="${q.id}">Réclamer</button>`
+          : `<span style="font-size:12px;color:var(--paper-dim);">En cours</span>`}
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+  el.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>{
+    const q = QUEST_DEFS.find(x=>x.id===b.dataset.claim);
+    if(!profile.questsClaimed[q.id] && q.check(profile)){
+      profile.questsClaimed[q.id]=true;
+      if(q.reward.money) profile.money += q.reward.money;
+      if(q.reward.gems) profile.gems += q.reward.gems;
+      afterChange(); renderQuests();
+    }
+  });
+}
+
+/* ============================ CLAN ============================ */
+async function renderClan(){
+  const el = document.getElementById('clanBody');
+  el.innerHTML = `<div class="section-title display">Clan</div><div id="clanBox">Chargement…</div>`;
+  const clans = await getClans();
+  const box = document.getElementById('clanBox');
+  if(profile.clan && clans[profile.clan]){
+    const c = clans[profile.clan];
+    const lb = await fetchLeaderboard();
+    const popOf = n => { const e = lb.find(x=>x.name===n); return e?e.population:'?'; };
+    box.innerHTML = `
+      <h3 style="margin-top:0;">${c.name}</h3>
+      <p style="color:var(--paper-dim);font-size:13px;">${c.members.length} membre(s)</p>
+      <div id="clanList">${c.members.map(m=>`<div class="member"><span>${m}${m===profile.name?' (toi)':''}</span><span>${popOf(m)} 👥</span></div>`).join('')}</div>
+      <button class="btn danger" id="leaveClan">Quitter le clan</button>
+    `;
+    document.getElementById('leaveClan').onclick = async ()=>{
+      clans[profile.clan].members = clans[profile.clan].members.filter(m=>m!==profile.name);
+      if(clans[profile.clan].members.length===0) delete clans[profile.clan];
+      const ok = await saveClans(clans);
+      if(ok){
+        profile.clan = null;
+        afterChange();
+      }
+      renderClan();
+    };
+  } else {
+    const clanNames = Object.keys(clans);
+    box.innerHTML = `
+      <p style="font-size:13px;color:var(--paper-dim);">Rejoins un clan existant ou crée le tien. Visible par tout le monde, y compris ton frère.</p>
+      <div style="display:flex;gap:8px;margin:10px 0;">
+        <input id="newClanName" placeholder="Nom du nouveau clan" style="flex:1;padding:8px;background:var(--ink);border:1px solid var(--line);color:var(--paper);border-radius:3px;">
+        <button class="btn" style="width:auto;margin:0;padding:8px 14px;font-size:16px;" id="createClanBtn">Créer</button>
+      </div>
+      <div class="section-title" style="font-size:20px;margin-top:18px;">Clans existants</div>
+      ${clanNames.length===0 ? '<p style="font-size:13px;color:var(--paper-dim);">Aucun clan pour l\'instant — sois le premier.</p>' :
+        clanNames.map(n=>`<div class="member" style="margin-bottom:6px;"><span>${n} (${clans[n].members.length})</span>
+          <button data-join="${n}" style="background:var(--khaki);border:none;color:var(--ink);padding:4px 10px;border-radius:3px;cursor:pointer;font-size:12px;">Rejoindre</button></div>`).join('')}
+    `;
+    document.getElementById('createClanBtn').onclick = async ()=>{
+      const name = document.getElementById('newClanName').value.trim();
+      if(!name) return;
+      if(clans[name]){ alert('Ce nom de clan existe déjà.'); return; }
+      const btn = document.getElementById('createClanBtn');
+      btn.disabled = true; btn.textContent = '...';
+      clans[name] = {name, members:[profile.name], created:Date.now()};
+      const ok = await saveClans(clans);
+      if(ok){
+        profile.clan = name;
+        afterChange();
+      }
+      renderClan();
+    };
+    el.querySelectorAll('[data-join]').forEach(b=>b.onclick=async ()=>{
+      const n = b.dataset.join;
+      b.disabled = true; b.textContent = '...';
+      if(!clans[n].members.includes(profile.name)) clans[n].members.push(profile.name);
+      const ok = await saveClans(clans);
+      if(ok){
+        profile.clan = n;
+        afterChange();
+      }
+      renderClan();
+    });
+  }
+}
+
+/* ============================ LEADERBOARD ============================ */
+async function renderBoard(){
+  const el = document.getElementById('boardBody');
+  el.innerHTML = `<div class="section-title display">Classement général</div><p style="color:var(--paper-dim);font-size:13px;">Mis à jour à chaque victoire. Partagé entre tous les commandants.</p><div id="lbWrap">Chargement…</div>`;
+  await pushToLeaderboard();
+  const entries = await fetchLeaderboard();
+  const wrap = document.getElementById('lbWrap');
+  if(entries.length===0){ wrap.innerHTML = '<p>Aucune donnée pour l\'instant.</p>'; return; }
+  let html = `<table class="lb"><tr><th>#</th><th>Commandant</th><th>Clan</th><th>Population</th><th>Puissance</th></tr>`;
+  entries.forEach((e,i)=>{
+    html += `<tr class="${e.name===profile.name?'me':''}"><td class="rank">${i+1}</td><td>${e.name}</td><td>${e.clan||'—'}</td><td>${e.population}</td><td>${e.power||0}</td></tr>`;
+  });
+  html += `</table>`;
+  wrap.innerHTML = html;
+}
+
+/* ============================ HUD / TICK ============================ */
+function refreshHUD(){
+  document.getElementById('statPop').textContent = profile.population;
+  document.getElementById('statMoney').textContent = Math.floor(profile.money);
+  document.getElementById('statGem').textContent = profile.gems;
+  document.getElementById('statPower').textContent = computePower(profile);
+}
+function afterChange(){ refreshHUD(); saveProfile(); }
+
+function tickEconomy(){
+  const now = Date.now();
+  const seconds = (now - profile.lastTick)/1000;
+  if(seconds>0){
+    profile.money += factoryIncomePerSecond(profile)*seconds;
+    profile.lastTick = now;
+  }
+}
+setInterval(()=>{
+  if(!profile) return;
+  tickEconomy();
+  refreshHUD();
+  saveProfile();
+}, 4000);
+
+/* ============================ LOGIN / INIT ============================ */
+document.getElementById('loginBtn').onclick = ()=> doLogin('login');
+document.getElementById('registerBtn').onclick = ()=> doLogin('register');
+document.getElementById('nameInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
+document.getElementById('passwordInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
+
+async function doLogin(mode){
+  const val = document.getElementById('nameInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if(!val || !password) return setLoginStatus('Renseigne le nom et le mot de passe.', 'var(--red)');
+  try{
+    setLoginStatus(mode === 'register' ? 'Création du compte...' : 'Connexion...', 'var(--paper-dim)');
+    const res = await apiRequest(mode === 'register' ? '/api/register' : '/api/login', {
+      method: 'POST',
+      body: { name: val, password },
+    });
+    authToken = res.token;
+    localStorage.setItem('oa_token', authToken);
+    profile = res.profile || await loadProfile(val);
+    username = profile.name;
+  }catch(e){
+    setLoginStatus(e.message || 'Échec de connexion.', 'var(--red)');
+    return;
+  }
+  tickEconomy();
+  setLoginStatus('', 'var(--paper-dim)');
+  document.getElementById('loginModal').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  initMap();
+  refreshHUD();
+  pushToLeaderboard();
+  saveProfile();
+}
+
+async function restoreSession(){
+  if(!authToken) return false;
+  try{
+    const res = await apiRequest('/api/me');
+    profile = res.profile;
+    username = profile.name;
+    tickEconomy();
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    initMap();
+    refreshHUD();
+    pushToLeaderboard();
+    return true;
+  }catch(e){
+    authToken = '';
+    localStorage.removeItem('oa_token');
+    return false;
+  }
+}
+
+restoreSession();
+</script>
+</body>
+</html>
