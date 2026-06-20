@@ -51,10 +51,10 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 .stat.pop .v{color:var(--green);}
 
 /* NAV */
-#nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;}
+#nav{display:flex;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line);flex-shrink:0;}
 .navbtn{flex:1;padding:10px 6px;text-align:center;background:none;border:none;color:var(--khaki-dim);
   font-family:'Teko',sans-serif;font-size:19px;letter-spacing:1.5px;cursor:pointer;border-right:1px solid var(--line);
-  transition:.15s;text-transform:uppercase;}
+  transition:.15s;text-transform:uppercase;min-width:110px;}
 .navbtn:last-child{border-right:none;}
 .navbtn:hover{color:var(--paper);background:var(--panel2);}
 .navbtn.active{color:var(--ink);background:var(--amber);font-weight:700;}
@@ -103,6 +103,36 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
   font-family:'Oswald';font-size:13px;border-radius:3px;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;}
 .card button:disabled{background:#4a4a3a;color:#8a8a7a;cursor:not-allowed;}
 .owned-badge{font-size:11px;background:var(--panel2);border:1px solid var(--line);padding:2px 6px;border-radius:10px;color:var(--khaki);}
+.panel-box{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px;}
+.progress-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;}
+.statline{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;}
+.statline:last-child{border-bottom:none;}
+.statline b{color:var(--amber);}
+.tag{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);font-size:11px;color:var(--khaki);margin-right:6px;}
+.small-btn{display:inline-block;width:auto;margin:0;padding:6px 10px;font-size:14px;line-height:1;}
+.field-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.field-row input,.field-row select,.field-row textarea{background:var(--ink);border:1px solid var(--line);color:var(--paper);border-radius:3px;padding:8px;font-family:'Oswald';}
+.field-row textarea{min-height:72px;resize:vertical;}
+.list{display:flex;flex-direction:column;gap:8px;}
+.list-item{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px;}
+.list-item-head{display:flex;justify-content:space-between;gap:10px;align-items:center;}
+.list-item .meta{font-size:12px;color:var(--paper-dim);}
+.chat-box{height:240px;overflow-y:auto;background:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+.chat-msg{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px;}
+.chat-msg .who{font-family:'JetBrains Mono';font-size:11px;color:var(--amber);margin-bottom:3px;}
+.chat-msg .when{font-size:11px;color:var(--khaki-dim);float:right;}
+.tech-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+.tech-card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.tech-card.locked{opacity:.6;}
+.tech-card h4{margin:0;font-size:18px;color:var(--paper);}
+.tech-card p{margin:0;font-size:12px;color:var(--paper-dim);}
+.tech-cost{font-family:'JetBrains Mono';font-size:13px;color:var(--amber);}
+.mini-title{font-size:20px;color:var(--amber);margin:16px 0 8px;border-bottom:1px solid var(--line);padding-bottom:4px;}
+.achievement-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;}
+.achievement-card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px;}
+.achievement-card.done{border-color:var(--green);box-shadow:0 0 0 1px rgba(127,174,92,.25) inset;}
+.achievement-card h4{margin:0 0 6px;font-size:18px;color:var(--paper);}
+.achievement-card p{margin:0;font-size:12px;color:var(--paper-dim);}
 
 .quest-row{display:flex;justify-content:space-between;align-items:center;background:var(--panel);
   border:1px solid var(--line);border-radius:4px;padding:10px 14px;margin-bottom:8px;}
@@ -167,6 +197,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
       <div class="stat pop"><span class="ic">👥</span><span class="v" id="statPop">0</span></div>
       <div class="stat money"><span class="ic">💰</span><span class="v" id="statMoney">0</span></div>
       <div class="stat gem"><span class="ic">💎</span><span class="v" id="statGem">0</span></div>
+      <div class="stat lvl"><span class="ic">🏅</span><span class="v" id="statLevel">1</span></div>
       <div class="stat"><span class="ic">⚔️</span><span class="v" id="statPower">0</span></div>
     </div>
     <button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button>
@@ -175,6 +206,8 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
   <div id="nav">
     <button class="navbtn active" data-view="map">Carte</button>
     <button class="navbtn" data-view="shop">Boutique</button>
+    <button class="navbtn" data-view="progress">Progrès</button>
+    <button class="navbtn" data-view="market">Marché</button>
     <button class="navbtn" data-view="quests">Quêtes</button>
     <button class="navbtn" data-view="clan">Clan</button>
     <button class="navbtn" data-view="board">Classement</button>
@@ -184,6 +217,15 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <div class="view active" id="view-map">
       <canvas id="mapCanvas"></canvas>
       <div id="mapHint">Glisse pour pivoter • Clique une base ennemie (🟡 disponible · 🟢 conquise · ⚪ verrouillée)</div>
+      <div class="field-row" id="mapControls" style="position:absolute;top:52px;left:10px;z-index:2;background:rgba(12,13,9,.75);padding:8px;border:1px solid var(--line);border-radius:4px;">
+        <select id="difficultySelect">
+          <option value="easy">Normal facile</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Difficile</option>
+          <option value="nightmare">Cauchemar</option>
+        </select>
+        <button class="btn secondary small-btn" id="bossFightBtn">Boss mondial</button>
+      </div>
       <button class="btn" id="nextMissionBtn" style="position:absolute;bottom:16px;left:16px;width:auto;padding:10px 18px;font-size:18px;margin:0;">Mission suivante ▶</button>
       <div id="sidePanel">
         <div class="sp-head"><h2 id="spTitle">—<span class="sp-close" id="spClose">✕</span></h2></div>
@@ -198,6 +240,8 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     </div>
 
     <div class="view" id="view-shop"><div class="pview" id="shopBody"></div></div>
+    <div class="view" id="view-progress"><div class="pview" id="progressBody"></div></div>
+    <div class="view" id="view-market"><div class="pview" id="marketBody"></div></div>
     <div class="view" id="view-quests"><div class="pview" id="questsBody"></div></div>
     <div class="view" id="view-clan"><div class="pview" id="clanBody"></div></div>
     <div class="view" id="view-board"><div class="pview" id="boardBody"></div></div>
@@ -212,6 +256,11 @@ const UNIT_DEFS = [
   {id:'heavy',    name:'Char lourd',     power:90,  cost:1500, desc:'Puissance de feu écrasante sur le terrain.'},
   {id:'jet',      name:'Chasseur',       power:220, cost:4000, desc:'Supériorité aérienne totale.'},
   {id:'carrier',  name:'Porte-avions',   power:500, cost:9000, desc:'Projette ta puissance sur tout le globe.'},
+  {id:'drone',    name:'Drone de combat', power:180, cost:3000, tech:'drone', desc:'Petit, précis et rapide à produire.'},
+  {id:'artillery',name:'Artillerie',     power:260, cost:5200, tech:'artillery', desc:'Brise les lignes ennemies à distance.'},
+  {id:'helicopter',name:'Hélicoptère',   power:320, cost:6500, tech:'aero', desc:'Polyvalent et très mobile.'},
+  {id:'submarine',name:'Sous-marin',     power:420, cost:8500, tech:'naval', desc:'Domine les mers en silence.'},
+  {id:'missile',  name:'Missile balistique', power:700, cost:14000, tech:'missile', desc:'Arme stratégique à très longue portée.'},
 ];
 const FACTORY_DEFS = [
   {id:'f1', name:'Usine de munitions', cost:800,  income:2, desc:'+2 argent / seconde, en continu.'},
@@ -232,6 +281,42 @@ const QUEST_DEFS = [
   {id:'q6', txt:'Construire ta première usine', reward:{money:300}, check:p=>(p.factories.f1+p.factories.f2+p.factories.f3)>0},
   {id:'q7', txt:'Atteindre 5000 de puissance', reward:{gems:20}, check:p=>computePower(p)>=5000},
 ];
+const ACHIEVEMENT_DEFS = [
+  {id:'a1', name:'Premier sang', desc:'Gagner une bataille.', reward:{money:100}, check:p=>p.battleWins>=1},
+  {id:'a2', name:'Commandant confirmé', desc:'Atteindre le niveau 5.', reward:{gems:5}, check:p=>p.commanderLevel>=5},
+  {id:'a3', name:'Industrialiste', desc:'Posséder 5 usines au total.', reward:{money:500}, check:p=>(p.factories.f1+p.factories.f2+p.factories.f3)>=5},
+  {id:'a4', name:'Clan soudé', desc:'Faire partie d’un clan.', reward:{gems:5}, check:p=>!!p.clan},
+  {id:'a5', name:'Force de frappe', desc:'Dépasser 10 000 de puissance.', reward:{gems:15,money:1000}, check:p=>computePower(p)>=10000},
+  {id:'a6', name:'Prestigieux', desc:'Faire un prestige.', reward:{gems:20}, check:p=>p.prestige>=1},
+];
+const TECH_DEFS = [
+  {id:'drone', name:'Essaim de drones', cost:1, desc:'Débloque les drones de combat.', unlocks:['drone']},
+  {id:'artillery', name:'Doctrine d’artillerie', cost:1, desc:'Débloque l’artillerie lourde.', unlocks:['artillery']},
+  {id:'aero', name:'Commandement aérien', cost:1, desc:'Débloque les hélicoptères.', unlocks:['helicopter']},
+  {id:'naval', name:'Flotte silencieuse', cost:1, desc:'Débloque les sous-marins.', unlocks:['submarine']},
+  {id:'missile', name:'Dissuasion stratégique', cost:2, desc:'Débloque les missiles balistiques.', unlocks:['missile']},
+  {id:'logistics', name:'Logistique avancée', cost:1, desc:'+10% revenus hors ligne et en temps réel.', bonus:'income'},
+  {id:'precision', name:'Précision augmentée', cost:1, desc:'+8% puissance globale.', bonus:'power'},
+];
+const GENERAL_DEFS = [
+  {id:'economist', name:'Économiste', cost:3500, desc:'+15% revenus des usines et de la banque.'},
+  {id:'tactician', name:'Tacticien', cost:6000, desc:'+8% puissance globale.'},
+  {id:'admiral', name:'Amiral', cost:8500, desc:'+12% puissance des unités navales.'},
+  {id:'hero', name:'Héros de guerre', cost:12000, desc:'+1 XP bonus par victoire.'},
+];
+const BATTLE_EVENTS = [
+  {id:'storm', name:'Météo défavorable', desc:'Les frappes aériennes sont moins efficaces.', enemy:+10, reward:0.95},
+  {id:'ambush', name:'Embuscade', desc:'L’ennemi prend l’avantage au départ.', enemy:+18, reward:1},
+  {id:'reinforcements', name:'Renforts alliés', desc:'Tes troupes sont soutenues.', enemy:-12, reward:1.05},
+  {id:'fog', name:'Brouillard de guerre', desc:'Les jets perdent en efficacité.', enemy:+8, reward:1},
+  {id:'supplies', name:'Convoi de ravitaillement', desc:'Récompense de victoire augmentée.', enemy:0, reward:1.12},
+];
+const DIFFICULTY_DEFS = {
+  easy: {enemy:0.9, reward:0.9, chance:0.08},
+  normal: {enemy:1, reward:1, chance:0},
+  hard: {enemy:1.18, reward:1.18, chance:-0.04},
+  nightmare: {enemy:1.35, reward:1.35, chance:-0.08},
+};
 const LEVEL_COUNT = 20;
 function levelPower(i){ return Math.round(25 * Math.pow(1.25, i)); }
 function levelReward(i){ return Math.round(60 * (i+1)); }
@@ -270,16 +355,32 @@ async function apiRequest(path, options={}){
 function totalUnits(p){ return UNIT_DEFS.reduce((s,u)=>s+p.units[u.id],0); }
 function computePower(p){
   let pw = p.bonusPower||0;
-  UNIT_DEFS.forEach(u=> pw += p.units[u.id]*u.power );
+  UNIT_DEFS.forEach(u=>{
+    const owned = p.units[u.id] || 0;
+    const upgrades = p.unitUpgrades && p.unitUpgrades[u.id] ? p.unitUpgrades[u.id] : { armor:0, precision:0, speed:0 };
+    const upgradeBonus = owned * ((upgrades.armor||0)*2 + (upgrades.precision||0)*3 + (upgrades.speed||0));
+    pw += owned*u.power + upgradeBonus;
+  });
+  if(p.general === 'tactician') pw *= 1.08;
+  if(p.general === 'admiral') pw += ((p.units.submarine||0) + (p.units.carrier||0)) * 12;
+  if(p.tech && p.tech.precision) pw *= 1.08;
+  pw += (p.prestige||0) * 75;
   return Math.round(pw);
 }
 function factoryIncomePerSecond(p){
-  let inc=0; FACTORY_DEFS.forEach(f=> inc += p.factories[f.id]*f.income ); return inc;
+  let inc=0; FACTORY_DEFS.forEach(f=> inc += p.factories[f.id]*f.income );
+  if(p.general === 'economist') inc *= 1.15;
+  if(p.tech && p.tech.logistics) inc *= 1.1;
+  return inc;
 }
 function defaultProfile(name){
   return {
     name, clan:null, money:2000, gems:25, population:100,
-    units:{infantry:0,armor:0,heavy:0,jet:0,carrier:0},
+    xp:0, commanderLevel:1, prestige:0, prestigePoints:0, techPoints:0,
+    tech:{}, achievements:{}, unitUpgrades:{}, general:null,
+    bank:{deposited:0, lastTick:Date.now()}, battleDifficulty:'normal',
+    battleWins:0, battleLosses:0,
+    units:{infantry:0,armor:0,heavy:0,jet:0,carrier:0,drone:0,artillery:0,helicopter:0,submarine:0,missile:0},
     factories:{f1:0,f2:0,f3:0},
     bonusPower:0,
     levelsCompleted: new Array(LEVEL_COUNT).fill(false),
@@ -287,21 +388,225 @@ function defaultProfile(name){
     lastTick: Date.now(),
   };
 }
+function commanderLevelFromXp(xp){
+  return Math.max(1, Math.floor(Math.sqrt(Math.max(0, xp||0)/250))+1);
+}
+function mergeProfile(profile, name){
+  const base = defaultProfile(name);
+  const source = profile || {};
+  const merged = {
+    ...base,
+    ...source,
+    name: source.name || name,
+    clan: source.clan || null,
+    units: { ...base.units, ...(source.units || {}) },
+    factories: { ...base.factories, ...(source.factories || {}) },
+    bank: { ...base.bank, ...(source.bank || {}) },
+    tech: { ...(source.tech || {}) },
+    achievements: { ...(source.achievements || {}) },
+    unitUpgrades: { ...(source.unitUpgrades || {}) },
+    levelsCompleted: Array.from({ length: LEVEL_COUNT }, (_, index) => !!(source.levelsCompleted && source.levelsCompleted[index])),
+    questsClaimed: { ...(source.questsClaimed || {}) },
+    xp: Number(source.xp) || 0,
+    commanderLevel: Number(source.commanderLevel) || commanderLevelFromXp(Number(source.xp) || 0),
+    prestige: Number(source.prestige) || 0,
+    prestigePoints: Number(source.prestigePoints) || 0,
+    techPoints: Number(source.techPoints) || 0,
+    general: source.general || null,
+    battleDifficulty: source.battleDifficulty || 'normal',
+    battleWins: Number(source.battleWins) || 0,
+    battleLosses: Number(source.battleLosses) || 0,
+    lastTick: Number(source.lastTick) || Date.now(),
+  };
+  const computedLevel = commanderLevelFromXp(merged.xp);
+  if (computedLevel > merged.commanderLevel) {
+    merged.techPoints += computedLevel - merged.commanderLevel;
+    merged.commanderLevel = computedLevel;
+  }
+  return merged;
+}
+function addCommanderXp(profile, amount){
+  const before = commanderLevelFromXp(profile.xp || 0);
+  profile.xp = (profile.xp || 0) + Math.max(0, amount || 0);
+  const after = commanderLevelFromXp(profile.xp);
+  if(after > before) profile.techPoints = (profile.techPoints || 0) + (after-before);
+  profile.commanderLevel = after;
+}
+function syncProfileEconomy(profile){
+  const now = Date.now();
+  const merged = mergeProfile(profile, profile.name);
+  const elapsed = Math.max(0, now - (merged.lastTick || now));
+  if(elapsed > 0){
+    const income = factoryIncomePerSecond(merged) * (elapsed/1000);
+    merged.money += income;
+    if(merged.bank.deposited > 0){
+      const bankElapsed = Math.max(0, now - (merged.bank.lastTick || now));
+      const rate = 0.0006 + ((merged.tech && merged.tech.logistics) ? 0.0002 : 0);
+      merged.bank.deposited += merged.bank.deposited * rate * (bankElapsed/60000);
+      merged.bank.lastTick = now;
+    }
+    merged.lastTick = now;
+  }
+  merged.commanderLevel = commanderLevelFromXp(merged.xp);
+  return merged;
+}
 async function loadProfile(name){
   try{
     if(!authToken) return defaultProfile(name);
     const res = await apiRequest('/api/me');
     if(res && res.profile){
-      const p = res.profile;
-      const def = defaultProfile(p.name || name);
-      for(const k in def){ if(p[k]===undefined) p[k]=def[k]; }
-      return p;
+      return mergeProfile(res.profile, res.profile.name || name);
     }
   }catch(e){}
   return defaultProfile(name);
 }
 async function saveProfile(){
   try{ await apiRequest('/api/me', { method:'PUT', body: profile }); }catch(e){ console.error('save failed',e); }
+}
+
+function commanderLevelValue(){
+  return Number(profile.commanderLevel) || commanderLevelFromXp(profile.xp || 0);
+}
+function techUnlocked(id){
+  return !!(profile.tech && profile.tech[id]);
+}
+function unitIsUnlocked(unit){
+  return !unit.tech || techUnlocked(unit.tech);
+}
+function unitUpgradeState(unitId){
+  if(!profile.unitUpgrades[unitId]) profile.unitUpgrades[unitId] = { armor:0, precision:0, speed:0 };
+  return profile.unitUpgrades[unitId];
+}
+function syncCommanderLevel(){
+  const next = commanderLevelFromXp(profile.xp || 0);
+  if(next > commanderLevelValue()) profile.techPoints = (profile.techPoints || 0) + (next - commanderLevelValue());
+  profile.commanderLevel = next;
+}
+function addProgressRewards({money=0, gems=0, xp=0, pop=0, clanXp=0, clanWar=0, clanName=null}){
+  if(money) profile.money += money;
+  if(gems) profile.gems += gems;
+  if(pop) profile.population += pop;
+  if(xp) addCommanderXp(profile, xp);
+  syncCommanderLevel();
+  if(clanName){
+    profile.__clanDelta = profile.__clanDelta || { xp:0, war:0 };
+    profile.__clanDelta.xp += clanXp || 0;
+    profile.__clanDelta.war += clanWar || 0;
+  }
+  checkAchievements();
+  refreshHUD();
+}
+function checkAchievements(){
+  if(!profile.achievements) profile.achievements = {};
+  ACHIEVEMENT_DEFS.forEach(a=>{
+    if(profile.achievements[a.id]) return;
+    if(a.check(profile)){
+      profile.achievements[a.id] = true;
+      if(a.reward.money) profile.money += a.reward.money;
+      if(a.reward.gems) profile.gems += a.reward.gems;
+    }
+  });
+}
+function prestigeAvailable(){
+  return profile.levelsCompleted.every(Boolean) || commanderLevelValue() >= 15;
+}
+function doPrestige(){
+  if(!prestigeAvailable()) return alert('Tu dois conquérir toute la carte ou atteindre le niveau 15 pour prestigier.');
+  const bonus = 1 + Math.floor((profile.commanderLevel + profile.prestige) / 10);
+  profile.prestige = (profile.prestige || 0) + 1;
+  profile.prestigePoints = (profile.prestigePoints || 0) + bonus;
+  profile.bonusPower += 100 * bonus;
+  profile.money = 2000;
+  profile.gems = 25;
+  profile.population = 100;
+  profile.xp = 0;
+  profile.commanderLevel = 1;
+  profile.techPoints = 0;
+  profile.levelsCompleted = new Array(LEVEL_COUNT).fill(false);
+  profile.questsClaimed = {};
+  profile.unitUpgrades = {};
+  profile.tech = {};
+  profile.general = null;
+  profile.bank = { deposited: 0, lastTick: Date.now() };
+  profile.battleWins = 0;
+  profile.battleLosses = 0;
+  afterChange();
+}
+function spendTechPoint(techId){
+  const tech = TECH_DEFS.find(t=>t.id===techId);
+  if(!tech) return;
+  if(techUnlocked(techId)) return;
+  if((profile.techPoints||0) < tech.cost) return alert('Pas assez de points de technologie.');
+  profile.techPoints -= tech.cost;
+  profile.tech[techId] = true;
+  checkAchievements();
+  afterChange();
+}
+function recruitGeneral(generalId){
+  const def = GENERAL_DEFS.find(g=>g.id===generalId);
+  if(!def) return;
+  if(profile.general === generalId) return;
+  if(profile.money < def.cost) return alert('Pas assez d’argent.');
+  profile.money -= def.cost;
+  profile.general = generalId;
+  afterChange();
+}
+function bankDeposit(amount){
+  const value = Math.max(1, Math.floor(amount));
+  if(profile.money < value) return false;
+  profile.money -= value;
+  profile.bank.deposited += value;
+  profile.bank.lastTick = Date.now();
+  afterChange();
+  return true;
+}
+function bankWithdraw(amount){
+  const value = Math.max(1, Math.floor(amount));
+  if(profile.bank.deposited < value) return false;
+  profile.bank.deposited -= value;
+  profile.money += value;
+  profile.bank.lastTick = Date.now();
+  afterChange();
+  return true;
+}
+function upgradeUnit(unitId, field){
+  const up = unitUpgradeState(unitId);
+  const price = field === 'armor' ? 600 : (field === 'precision' ? 650 : 500);
+  if(profile.money < price) return alert('Pas assez d’argent.');
+  profile.money -= price;
+  up[field] = (up[field] || 0) + 1;
+  afterChange();
+}
+function rotatingStock(key, max){
+  const bucket = Math.floor(Date.now() / 300000);
+  let hash = bucket;
+  const token = `${key}:${bucket}`;
+  for(const ch of token){ hash = (hash * 31 + ch.charCodeAt(0)) % 1000003; }
+  return hash % (max + 1);
+}
+async function fetchMarketListings(){
+  try{
+    const res = await apiRequest('/api/market');
+    return res.listings || [];
+  }catch(e){ return []; }
+}
+async function createMarketListing(payload){
+  return apiRequest('/api/market/list', { method:'POST', body: payload });
+}
+async function buyMarketListing(id){
+  return apiRequest('/api/market/buy', { method:'POST', body: { id } });
+}
+async function cancelMarketListing(id){
+  return apiRequest('/api/market/cancel', { method:'DELETE', body: { id } });
+}
+async function fetchClanChat(clan){
+  try{
+    const res = await apiRequest(`/api/clan-chat?clan=${encodeURIComponent(clan)}`);
+    return res.messages || [];
+  }catch(e){ return []; }
+}
+async function sendClanChat(clan, text){
+  return apiRequest('/api/clan-chat', { method:'POST', body: { clan, text } });
 }
 
 /* shared leaderboard */
@@ -451,6 +756,20 @@ function onMapClick(e){
   }
 }
 
+function battleDifficultyConfig(){
+  return DIFFICULTY_DEFS[profile.battleDifficulty || 'normal'] || DIFFICULTY_DEFS.normal;
+}
+function pickBattleEvent(){
+  return BATTLE_EVENTS[Math.floor(Math.random() * BATTLE_EVENTS.length)];
+}
+function bossBattlePower(){
+  const conquered = profile.levelsCompleted.filter(Boolean).length;
+  return Math.round(1200 + (conquered * 120) + (profile.prestige || 0) * 200 + commanderLevelValue() * 90 + computePower(profile) * 0.08);
+}
+function stageRewardBonus(multiplier){
+  return Math.max(1, Math.round(multiplier * 100));
+}
+
 /* ============================ SIDE PANEL ============================ */
 const sidePanel = document.getElementById('sidePanel');
 document.getElementById('spClose').onclick = ()=> sidePanel.classList.remove('open');
@@ -487,6 +806,43 @@ function openLevelPanel(i){
   sidePanel.classList.add('open');
 }
 
+function launchBossBattle(){
+  sidePanel.classList.remove('open');
+  overlay.classList.add('show');
+  battleResultEl.textContent = '';
+  battleResultEl.className = '';
+  battleSubEl.textContent = '';
+  battleCloseBtn.style.display = 'none';
+  const diff = battleDifficultyConfig();
+  const event = pickBattleEvent();
+  const enemyPower = Math.max(600, Math.round(bossBattlePower() * diff.enemy + (event.enemy || 0)));
+  const myPower = computePower(profile);
+  const winChance = Math.min(0.95, Math.max(0.12, (myPower * 1.25) / (myPower * 1.25 + enemyPower)) + (diff.chance || 0));
+  const win = Math.random() < winChance;
+  runBattleAnim(win, ()=>{
+    profile.battleWins = (profile.battleWins || 0) + (win ? 1 : 0);
+    profile.battleLosses = (profile.battleLosses || 0) + (win ? 0 : 1);
+    if(win){
+      battleResultEl.textContent = 'VICTOIRE';
+      battleResultEl.className = 'win';
+      const rewardMoney = Math.round(stageRewardBonus(diff.reward || 1) * 15);
+      const rewardGems = Math.max(1, Math.round(2 * (diff.reward || 1)));
+      profile.money += rewardMoney;
+      profile.gems += rewardGems;
+      addCommanderXp(profile, 180);
+      battleSubEl.textContent = `Boss vaincu · +${rewardMoney} argent · +${rewardGems} gemmes`;
+      updateClanProgress({ xp: 40, war: 10, battle: 1 }).catch(()=>{});
+    } else {
+      battleResultEl.textContent = 'ÉCHEC';
+      battleResultEl.className = 'lose';
+      battleSubEl.textContent = `Le boss t’écrase. Reviens avec plus de puissance.`;
+    }
+    battleCloseBtn.style.display = 'block';
+    checkAchievements();
+    afterChange();
+  });
+}
+
 /* ============================ BATTLE ============================ */
 const overlay = document.getElementById('battleOverlay');
 const bCanvas = document.getElementById('battleCanvas');
@@ -503,23 +859,30 @@ function launchBattle(i){
   battleSubEl.textContent = '';
   battleCloseBtn.style.display = 'none';
 
+  const diff = battleDifficultyConfig();
+  const event = pickBattleEvent();
   const myPower = computePower(profile);
-  const enemyPower = levelPower(i);
-  const winChance = Math.min(0.98, Math.max(0.25, (myPower*1.4)/(myPower*1.4+enemyPower)));
+  const enemyPower = Math.max(10, Math.round(levelPower(i) * diff.enemy + (event.enemy || 0)));
+  const winChance = Math.min(0.98, Math.max(0.2, (myPower*1.4)/(myPower*1.4+enemyPower)) + (diff.chance || 0));
   const win = Math.random() < winChance;
 
   runBattleAnim(win, ()=>{
     if(win){
       profile.levelsCompleted[i] = true;
       profile.population += 1;
-      profile.money += levelReward(i);
+      const reward = Math.round(levelReward(i) * (diff.reward || 1) * (event.reward || 1));
+      profile.money += reward;
+      addCommanderXp(profile, Math.round((40 + (i * 6)) * (profile.general === 'hero' ? 1.15 : 1)));
+      profile.battleWins = (profile.battleWins || 0) + 1;
+      updateClanProgress({ xp: 15, war: 4, battle: 1, power: myPower }).catch(()=>{});
       battleResultEl.textContent = 'VICTOIRE';
       battleResultEl.className = 'win';
-      battleSubEl.textContent = `+1 population · +${levelReward(i)} argent`;
+      battleSubEl.textContent = `+1 population · +${reward} argent · +${40 + (i * 6)} XP · ${event.name}`;
     } else {
       battleResultEl.textContent = 'ÉCHEC';
       battleResultEl.className = 'lose';
-      battleSubEl.textContent = `Tes troupes se replient. Renforce-toi avant de réessayer.`;
+      profile.battleLosses = (profile.battleLosses || 0) + 1;
+      battleSubEl.textContent = `Tes troupes se replient. Renforce-toi avant de réessayer. ${event.desc}`;
     }
     battleCloseBtn.style.display = 'block';
     saveProfile();
@@ -571,6 +934,8 @@ document.querySelectorAll('.navbtn').forEach(btn=>{
     if(btn.dataset.view==='clan') renderClan();
     if(btn.dataset.view==='quests') renderQuests();
     if(btn.dataset.view==='shop') renderShop();
+    if(btn.dataset.view==='progress') renderProgress();
+    if(btn.dataset.view==='market') renderMarket();
     if(btn.dataset.view==='map') resizeRenderer();
   };
 });
@@ -580,34 +945,57 @@ function renderShop(){
   const el = document.getElementById('shopBody');
   let html = `<div class="section-title display">Unités militaires</div><div class="cards">`;
   UNIT_DEFS.forEach(u=>{
-    const owned = profile.units[u.id];
-    const afford = profile.money>=u.cost;
-    html += `<div class="card">
+    const owned = profile.units[u.id] || 0;
+    const unlocked = unitIsUnlocked(u);
+    const stock = rotatingStock(`unit-${u.id}`, 3);
+    const afford = unlocked && stock > 0 && profile.money>=u.cost;
+    const up = unitUpgradeState(u.id);
+    const upgradeLines = `<div class="meta">Blindage ${up.armor||0} · Précision ${up.precision||0} · Vitesse ${up.speed||0}</div>`;
+    html += `<div class="card ${unlocked?'':'locked'}">
       <h3>${u.name} <span class="owned-badge">x${owned}</span></h3>
-      <p>${u.desc} — Puissance ${u.power}</p>
-      <div class="price">💰 ${u.cost}</div>
-      <button data-buy-unit="${u.id}" ${afford?'':'disabled'}>Acheter</button>
+      <p>${u.desc} — Puissance ${u.power}${u.tech ? ` · Tech: ${u.tech}` : ''}</p>
+      <div class="price">💰 ${u.cost} · Stock ${stock}</div>
+      ${upgradeLines}
+      <div class="field-row">
+        <button data-upgrade-unit="${u.id}" data-field="armor" class="small-btn">Blindage +</button>
+        <button data-upgrade-unit="${u.id}" data-field="precision" class="small-btn">Précision +</button>
+        <button data-upgrade-unit="${u.id}" data-field="speed" class="small-btn">Vitesse +</button>
+      </div>
+      <button data-buy-unit="${u.id}" ${afford?'':'disabled'}>${unlocked ? 'Acheter' : 'Verrouillé'}</button>
     </div>`;
   });
-  html += `</div><div class="section-title display">Usines (revenu passif)</div><div class="cards">`;
+  html += `</div><div class="mini-title">Usines (revenu passif)</div><div class="cards">`;
   FACTORY_DEFS.forEach(f=>{
     const owned = profile.factories[f.id];
     const cost = Math.round(f.cost*(1+owned*0.6));
     const afford = profile.money>=cost;
+    const stock = rotatingStock(`factory-${f.id}`, 2);
     html += `<div class="card">
       <h3>${f.name} <span class="owned-badge">x${owned}</span></h3>
       <p>${f.desc}</p>
-      <div class="price">💰 ${cost}</div>
-      <button data-buy-factory="${f.id}" ${afford?'':'disabled'}>Construire</button>
+      <div class="price">💰 ${cost} · Stock ${stock}</div>
+      <button data-buy-factory="${f.id}" ${afford && stock>0 ? '':'disabled'}>Construire</button>
     </div>`;
   });
-  html += `</div><div class="section-title display">Marché noir <span style="font-size:13px;color:var(--gem);">💎 gemmes</span></div><div class="cards">`;
+  html += `</div><div class="mini-title">Généraux</div><div class="cards">`;
+  GENERAL_DEFS.forEach(g=>{
+    const active = profile.general === g.id;
+    const afford = profile.money >= g.cost && !active;
+    html += `<div class="card ${active ? '' : ''}">
+      <h3>${g.name} <span class="owned-badge">${active ? 'actif' : 'bonus'}</span></h3>
+      <p>${g.desc}</p>
+      <div class="price">💰 ${g.cost}</div>
+      <button data-recruit-general="${g.id}" ${afford ? '' : 'disabled'}>${active ? 'En service' : 'Recruter'}</button>
+    </div>`;
+  });
+  html += `</div><div class="mini-title">Marché noir <span style="font-size:13px;color:var(--gem);">💎 gemmes</span></div><div class="cards">`;
   BLACKMARKET_DEFS.forEach(m=>{
-    const afford = profile.gems>=m.gemCost;
+    const stock = rotatingStock(`black-${m.id}`, 2);
+    const afford = profile.gems>=m.gemCost && stock>0;
     html += `<div class="card">
       <h3>${m.name}</h3>
       <p>${m.desc}</p>
-      <div class="price gemp">💎 ${m.gemCost}</div>
+      <div class="price gemp">💎 ${m.gemCost} · Stock ${stock}</div>
       <button data-buy-bm="${m.id}" ${afford?'':'disabled'}>Échanger</button>
     </div>`;
   });
@@ -616,24 +1004,203 @@ function renderShop(){
 
   el.querySelectorAll('[data-buy-unit]').forEach(b=>b.onclick=()=>{
     const u = UNIT_DEFS.find(x=>x.id===b.dataset.buyUnit);
-    if(profile.money>=u.cost){ profile.money-=u.cost; profile.units[u.id]++; afterChange(); renderShop(); }
+    if(!unitIsUnlocked(u)) return alert('Cette unité est verrouillée par la technologie.');
+    if(profile.money>=u.cost && rotatingStock(`unit-${u.id}`, 3)>0){ profile.money-=u.cost; profile.units[u.id] = (profile.units[u.id] || 0) + 1; addCommanderXp(profile, 18); afterChange(); renderShop(); }
   });
   el.querySelectorAll('[data-buy-factory]').forEach(b=>b.onclick=()=>{
     const f = FACTORY_DEFS.find(x=>x.id===b.dataset.buyFactory);
     const cost = Math.round(f.cost*(1+profile.factories[f.id]*0.6));
-    if(profile.money>=cost){ profile.money-=cost; profile.factories[f.id]++; afterChange(); renderShop(); }
+    if(profile.money>=cost && rotatingStock(`factory-${f.id}`, 2)>0){ profile.money-=cost; profile.factories[f.id]++; addCommanderXp(profile, 10); updateClanProgress({ factory: 1, xp: 4 }).catch(()=>{}); afterChange(); renderShop(); }
   });
   el.querySelectorAll('[data-buy-bm]').forEach(b=>b.onclick=()=>{
     const m = BLACKMARKET_DEFS.find(x=>x.id===b.dataset.buyBm);
-    if(profile.gems>=m.gemCost){
+    if(profile.gems>=m.gemCost && rotatingStock(`black-${m.id}`, 2)>0){
       profile.gems-=m.gemCost;
       if(m.id==='crate'){
         const n = 1+Math.floor(Math.random()*3);
-        for(let k=0;k<n;k++){ const u=UNIT_DEFS[Math.floor(Math.random()*UNIT_DEFS.length)]; profile.units[u.id]++; }
+        for(let k=0;k<n;k++){ const u=UNIT_DEFS[Math.floor(Math.random()*UNIT_DEFS.length)]; profile.units[u.id] = (profile.units[u.id] || 0) + 1; }
       } else if(m.id==='vets'){ profile.bonusPower += 150; }
       else if(m.id==='convoy'){ profile.money += 2500; }
+      addCommanderXp(profile, 8);
       afterChange(); renderShop();
     }
+  });
+  el.querySelectorAll('[data-upgrade-unit]').forEach(b=>b.onclick=()=>{
+    upgradeUnit(b.dataset.upgradeUnit, b.dataset.field);
+    renderShop();
+  });
+  el.querySelectorAll('[data-recruit-general]').forEach(b=>b.onclick=()=>{
+    recruitGeneral(b.dataset.recruitGeneral);
+    renderShop();
+  });
+}
+
+/* ============================ PROGRESSION ============================ */
+function renderProgress(){
+  const el = document.getElementById('progressBody');
+  const level = commanderLevelValue();
+  const prevThreshold = Math.pow(Math.max(0, level - 1), 2) * 250;
+  const nextThreshold = Math.pow(level, 2) * 250;
+  const gained = Math.max(0, (profile.xp || 0) - prevThreshold);
+  const needed = Math.max(1, nextThreshold - prevThreshold);
+  const pct = Math.min(100, Math.round((gained / needed) * 100));
+  let html = `<div class="section-title display">Progrès du commandant</div>
+    <div class="progress-grid">
+      <div class="panel-box">
+        <div class="statline"><span>Niveau</span><b>${level}</b></div>
+        <div class="statline"><span>XP</span><b>${Math.floor(profile.xp || 0)} / ${nextThreshold}</b></div>
+        <div class="statline"><span>Prestige</span><b>${profile.prestige || 0}</b></div>
+        <div class="statline"><span>Points tech</span><b>${profile.techPoints || 0}</b></div>
+        <div class="statline"><span>Général</span><b>${profile.general || 'aucun'}</b></div>
+        <div class="statline"><span>Revenu banque</span><b>${Math.floor(profile.bank && profile.bank.deposited || 0)}</b></div>
+        <div style="margin-top:10px;background:var(--ink);border:1px solid var(--line);border-radius:4px;overflow:hidden;height:14px;">
+          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--green),var(--amber));"></div>
+        </div>
+        <div style="font-size:12px;color:var(--paper-dim);margin-top:6px;">${pct}% vers le prochain niveau</div>
+        <button class="btn" id="prestigeBtn" ${prestigeAvailable() ? '' : 'disabled'}>Prestige</button>
+      </div>
+      <div class="panel-box">
+        <div class="statline"><span>Victoire/défaite</span><b>${profile.battleWins || 0} / ${profile.battleLosses || 0}</b></div>
+        <div class="statline"><span>Difficulté</span><b>${profile.battleDifficulty || 'normal'}</b></div>
+        <div class="statline"><span>Bonus permanent</span><b>+${Math.round((profile.prestige || 0) * 75)} puissance</b></div>
+        <div class="statline"><span>Bonus généraux</span><b>${profile.general ? 'actif' : 'aucun'}</b></div>
+        <button class="btn secondary" id="bossFightBtn2">Boss mondial</button>
+        <button class="btn secondary" id="refreshProgressBtn">Rafraîchir</button>
+      </div>
+    </div>`;
+
+  html += `<div class="mini-title">Arbre de technologies</div><div class="tech-grid">`;
+  TECH_DEFS.forEach(tech=>{
+    const owned = techUnlocked(tech.id);
+    const canBuy = !owned && (profile.techPoints || 0) >= tech.cost;
+    html += `<div class="tech-card ${owned ? '' : 'locked'}">
+      <h4>${tech.name}</h4>
+      <p>${tech.desc}</p>
+      <div class="tech-cost">${owned ? 'Déjà débloqué' : `Coût ${tech.cost} point(s)`}</div>
+      <button class="btn secondary" data-buy-tech="${tech.id}" ${canBuy ? '' : 'disabled'}>${owned ? 'Débloqué' : 'Débloquer'}</button>
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="mini-title">Succès</div><div class="achievement-grid">`;
+  ACHIEVEMENT_DEFS.forEach(a=>{
+    const done = !!profile.achievements[a.id];
+    html += `<div class="achievement-card ${done ? 'done' : ''}">
+      <h4>${a.name}</h4>
+      <p>${a.desc}</p>
+      <div class="tech-cost">Récompense ${Object.entries(a.reward).map(([k,v])=>`${k==='money'?'💰':'💎'} ${v}`).join(' · ')}</div>
+      <div style="font-size:12px;color:${done ? 'var(--green)' : 'var(--paper-dim)'};margin-top:6px;">${done ? 'Débloqué' : 'En cours'}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  el.innerHTML = html;
+  document.getElementById('prestigeBtn').onclick = ()=>{ doPrestige(); renderProgress(); };
+  document.getElementById('bossFightBtn2').onclick = ()=> launchBossBattle();
+  document.getElementById('refreshProgressBtn').onclick = ()=> renderProgress();
+  el.querySelectorAll('[data-buy-tech]').forEach(b=>b.onclick=()=>{
+    spendTechPoint(b.dataset.buyTech);
+    renderProgress();
+    renderShop();
+  });
+}
+
+/* ============================ MARCHÉ ============================ */
+async function renderMarket(){
+  const el = document.getElementById('marketBody');
+  const listings = await fetchMarketListings();
+  let html = `<div class="section-title display">Banque et commerce</div>`;
+  html += `<div class="progress-grid">
+    <div class="panel-box">
+      <div class="statline"><span>Argent disponible</span><b>${Math.floor(profile.money)}</b></div>
+      <div class="statline"><span>En banque</span><b>${Math.floor(profile.bank && profile.bank.deposited || 0)}</b></div>
+      <div class="statline"><span>Intérêt estimé / min</span><b>${Math.floor((profile.bank && profile.bank.deposited || 0) * 0.0006)}</b></div>
+      <div class="field-row" style="margin-top:10px;">
+        <input id="bankAmount" type="number" min="1" value="250" style="width:120px;">
+        <button class="small-btn" id="bankDepositBtn">Déposer</button>
+        <button class="small-btn" id="bankWithdrawBtn">Retirer</button>
+      </div>
+    </div>
+    <div class="panel-box">
+      <div class="statline"><span>Créer une annonce</span><b>Marché global</b></div>
+      <div class="field-row">
+        <select id="listingKind">
+          <option value="unit">Unité</option>
+          <option value="gems">Gemmes</option>
+          <option value="money">Argent</option>
+        </select>
+        <select id="listingUnit"></select>
+        <input id="listingQty" type="number" min="1" value="1" style="width:90px;">
+        <input id="listingPrice" type="number" min="1" value="500" style="width:110px;">
+        <button class="small-btn" id="createListingBtn">Lister</button>
+      </div>
+      <div style="font-size:12px;color:var(--paper-dim);margin-top:8px;">Les annonces retirent l’objet de ton stock jusqu’à l’achat ou l’annulation.</div>
+    </div>
+  </div>`;
+
+  html += `<div class="mini-title">Annonces des joueurs</div><div class="list">`;
+  if(listings.length===0){
+    html += `<div class="panel-box">Aucune annonce pour le moment.</div>`;
+  } else {
+    listings.forEach(listing=>{
+      const label = listing.kind === 'unit' ? `${listing.quantity} ${UNIT_DEFS.find(u=>u.id===listing.unitId)?.name || listing.unitId}` : (listing.kind === 'gems' ? `${listing.quantity} gemmes` : `${listing.quantity} argent`);
+      const isMine = listing.sellerKey === authToken ? false : (listing.seller === profile.name);
+      html += `<div class="list-item">
+        <div class="list-item-head">
+          <div>
+            <div><span class="tag">${label}</span> ${listing.price} 💰</div>
+            <div class="meta">Vendeur: ${listing.seller}</div>
+          </div>
+          <div>
+            ${listing.seller === profile.name ? '<span class="tag">À toi</span>' : `<button class="small-btn" data-buy-listing="${listing.id}">Acheter</button>`}
+            ${listing.seller === profile.name ? `<button class="small-btn" data-cancel-listing="${listing.id}">Annuler</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+  const listingUnit = document.getElementById('listingUnit');
+  listingUnit.innerHTML = UNIT_DEFS.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  const listingKind = document.getElementById('listingKind');
+  const refreshUnitField = ()=>{
+    listingUnit.disabled = listingKind.value !== 'unit';
+    document.getElementById('listingQty').value = listingKind.value === 'unit' ? 1 : 25;
+    document.getElementById('listingPrice').value = listingKind.value === 'unit' ? 500 : 250;
+  };
+  refreshUnitField();
+  listingKind.onchange = refreshUnitField;
+  document.getElementById('bankDepositBtn').onclick = ()=>{ bankDeposit(Number(document.getElementById('bankAmount').value || 0)); renderMarket(); };
+  document.getElementById('bankWithdrawBtn').onclick = ()=>{ bankWithdraw(Number(document.getElementById('bankAmount').value || 0)); renderMarket(); };
+  document.getElementById('createListingBtn').onclick = async ()=>{
+    try{
+      const kind = listingKind.value;
+      const unitId = listingUnit.value;
+      const quantity = Number(document.getElementById('listingQty').value || 1);
+      const price = Number(document.getElementById('listingPrice').value || 1);
+      await createMarketListing({ kind, unitId, quantity, price });
+      profile = await loadProfile(profile.name);
+      renderMarket();
+      refreshHUD();
+    }catch(e){ alert(e.message || 'Impossible de créer l’annonce.'); }
+  };
+  el.querySelectorAll('[data-buy-listing]').forEach(b=>b.onclick=async ()=>{
+    try{
+      await buyMarketListing(b.dataset.buyListing);
+      profile = await loadProfile(profile.name);
+      renderMarket();
+      refreshHUD();
+    }catch(e){ alert(e.message || 'Impossible d’acheter cette annonce.'); }
+  });
+  el.querySelectorAll('[data-cancel-listing]').forEach(b=>b.onclick=async ()=>{
+    try{
+      await cancelMarketListing(b.dataset.cancelListing);
+      profile = await loadProfile(profile.name);
+      renderMarket();
+      refreshHUD();
+    }catch(e){ alert(e.message || 'Impossible d’annuler cette annonce.'); }
   });
 }
 
@@ -662,6 +1229,8 @@ function renderQuests(){
       profile.questsClaimed[q.id]=true;
       if(q.reward.money) profile.money += q.reward.money;
       if(q.reward.gems) profile.gems += q.reward.gems;
+      addCommanderXp(profile, 20);
+      updateClanProgress({ xp: 10 }).catch(()=>{});
       afterChange(); renderQuests();
     }
   });
@@ -677,10 +1246,24 @@ async function renderClan(){
     const c = clans[profile.clan];
     const lb = await fetchLeaderboard();
     const popOf = n => { const e = lb.find(x=>x.name===n); return e?e.population:'?'; };
+    const missions = Array.isArray(c.missions) ? c.missions : [];
+    const messages = await fetchClanChat(profile.clan);
     box.innerHTML = `
       <h3 style="margin-top:0;">${c.name}</h3>
-      <p style="color:var(--paper-dim);font-size:13px;">${c.members.length} membre(s)</p>
+      <p style="color:var(--paper-dim);font-size:13px;">${c.members.length} membre(s) · Niveau ${c.level || 1} · XP ${c.xp || 0} · Guerre ${c.warPoints || 0}</p>
+      <div class="section-title" style="font-size:20px;margin-top:14px;">Membres</div>
       <div id="clanList">${c.members.map(m=>`<div class="member"><span>${m}${m===profile.name?' (toi)':''}</span><span>${popOf(m)} 👥</span></div>`).join('')}</div>
+      <div class="section-title" style="font-size:20px;margin-top:14px;">Missions de clan</div>
+      <div class="list">${missions.map(m=>`<div class="list-item">
+        <div class="list-item-head"><div><span class="tag">${m.progress||0}/${m.target||0}</span> ${m.txt}</div>
+        <div>${m.claimed ? '<span style="color:var(--green);">Réclamée</span>' : ((m.progress||0) >= (m.target||0) ? `<button class="small-btn" data-clan-mission-claim="${m.id}">Réclamer</button>` : '<span style="color:var(--paper-dim);">En cours</span>')}</div></div>
+      </div>`).join('')}</div>
+      <div class="section-title" style="font-size:20px;margin-top:14px;">Chat de clan</div>
+      <div class="chat-box" id="clanChatBox">${messages.length ? messages.map(msg=>`<div class="chat-msg"><div class="who">${msg.sender}<span class="when">${new Date(msg.createdAt).toLocaleTimeString()}</span></div><div>${msg.text}</div></div>`).join('') : '<div style="color:var(--paper-dim);">Aucun message.</div>'}</div>
+      <div class="field-row" style="margin-top:10px;">
+        <input id="clanChatInput" placeholder="Écrire un message au clan" style="flex:1;">
+        <button class="small-btn" id="sendClanMsgBtn">Envoyer</button>
+      </div>
       <button class="btn danger" id="leaveClan">Quitter le clan</button>
     `;
     document.getElementById('leaveClan').onclick = async ()=>{
@@ -693,6 +1276,26 @@ async function renderClan(){
       }
       renderClan();
     };
+    document.getElementById('sendClanMsgBtn').onclick = async ()=>{
+      try{
+        const text = document.getElementById('clanChatInput').value.trim();
+        if(!text) return;
+        await sendClanChat(profile.clan, text);
+        renderClan();
+      }catch(e){ alert(e.message || 'Impossible d’envoyer le message.'); }
+    };
+    el.querySelectorAll('[data-clan-mission-claim]').forEach(b=>b.onclick=async ()=>{
+      try{
+        const mission = missions.find(m=>m.id === b.dataset.clanMissionClaim);
+        if(!mission || mission.claimed || (mission.progress||0) < (mission.target||0)) return;
+        mission.claimed = true;
+        if(mission.reward.money) profile.money += mission.reward.money;
+        if(mission.reward.gems) profile.gems += mission.reward.gems;
+        await saveClans(clans);
+        afterChange();
+        renderClan();
+      }catch(e){ alert(e.message || 'Impossible de réclamer cette mission.'); }
+    });
   } else {
     const clanNames = Object.keys(clans);
     box.innerHTML = `
@@ -712,7 +1315,11 @@ async function renderClan(){
       if(clans[name]){ alert('Ce nom de clan existe déjà.'); return; }
       const btn = document.getElementById('createClanBtn');
       btn.disabled = true; btn.textContent = '...';
-      clans[name] = {name, members:[profile.name], created:Date.now()};
+      clans[name] = {name, members:[profile.name], created:Date.now(), level:1, xp:0, warPoints:0, missions:[
+        { id: 'm1', txt: 'Gagner 5 batailles', reward: { gems: 10 }, progress: 0, target: 5, claimed: false },
+        { id: 'm2', txt: 'Construire 10 usines en équipe', reward: { money: 1000 }, progress: 0, target: 10, claimed: false },
+        { id: 'm3', txt: 'Réunir 20 membres de puissance', reward: { gems: 25 }, progress: 0, target: 20, claimed: false },
+      ], chat: []};
       const ok = await saveClans(clans);
       if(ok){
         profile.clan = name;
@@ -734,6 +1341,25 @@ async function renderClan(){
   }
 }
 
+async function updateClanProgress(delta){
+  if(!profile.clan) return;
+  const clans = await getClans();
+  const clan = clans[profile.clan];
+  if(!clan) return;
+  const progress = delta || {};
+  clan.xp = (clan.xp || 0) + (progress.xp || 0);
+  clan.warPoints = (clan.warPoints || 0) + (progress.war || 0);
+  clan.level = Math.max(1, Math.floor((clan.xp || 0) / 250) + 1);
+  clan.missions = Array.isArray(clan.missions) ? clan.missions : [];
+  clan.missions.forEach(m=>{
+    if(m.id === 'm1' && progress.battle) m.progress = (m.progress || 0) + progress.battle;
+    if(m.id === 'm2' && progress.factory) m.progress = (m.progress || 0) + progress.factory;
+    if(m.id === 'm3' && progress.power) m.progress = Math.max(m.progress || 0, Math.floor(progress.power / 1000));
+  });
+  clans[profile.clan] = clan;
+  await saveClans(clans);
+}
+
 /* ============================ LEADERBOARD ============================ */
 async function renderBoard(){
   const el = document.getElementById('boardBody');
@@ -742,9 +1368,9 @@ async function renderBoard(){
   const entries = await fetchLeaderboard();
   const wrap = document.getElementById('lbWrap');
   if(entries.length===0){ wrap.innerHTML = '<p>Aucune donnée pour l\'instant.</p>'; return; }
-  let html = `<table class="lb"><tr><th>#</th><th>Commandant</th><th>Clan</th><th>Population</th><th>Puissance</th></tr>`;
+  let html = `<table class="lb"><tr><th>#</th><th>Commandant</th><th>Niveau</th><th>Prestige</th><th>Clan</th><th>Population</th><th>Puissance</th></tr>`;
   entries.forEach((e,i)=>{
-    html += `<tr class="${e.name===profile.name?'me':''}"><td class="rank">${i+1}</td><td>${e.name}</td><td>${e.clan||'—'}</td><td>${e.population}</td><td>${e.power||0}</td></tr>`;
+    html += `<tr class="${e.name===profile.name?'me':''}"><td class="rank">${i+1}</td><td>${e.name}</td><td>${e.level || 1}</td><td>${e.prestige || 0}</td><td>${e.clan||'—'}</td><td>${e.population}</td><td>${e.power||0}</td></tr>`;
   });
   html += `</table>`;
   wrap.innerHTML = html;
@@ -755,17 +1381,13 @@ function refreshHUD(){
   document.getElementById('statPop').textContent = profile.population;
   document.getElementById('statMoney').textContent = Math.floor(profile.money);
   document.getElementById('statGem').textContent = profile.gems;
+  document.getElementById('statLevel').textContent = commanderLevelValue();
   document.getElementById('statPower').textContent = computePower(profile);
 }
 function afterChange(){ refreshHUD(); saveProfile(); }
 
 function tickEconomy(){
-  const now = Date.now();
-  const seconds = (now - profile.lastTick)/1000;
-  if(seconds>0){
-    profile.money += factoryIncomePerSecond(profile)*seconds;
-    profile.lastTick = now;
-  }
+  profile = syncProfileEconomy(profile);
 }
 setInterval(()=>{
   if(!profile) return;
@@ -780,6 +1402,13 @@ document.getElementById('registerBtn').onclick = ()=> doLogin('register');
 document.getElementById('logoutBtn').onclick = ()=> logout();
 document.getElementById('nameInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
 document.getElementById('passwordInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
+document.getElementById('difficultySelect').value = 'normal';
+document.getElementById('difficultySelect').onchange = ()=>{
+  if(!profile) return;
+  profile.battleDifficulty = document.getElementById('difficultySelect').value;
+  afterChange();
+};
+document.getElementById('bossFightBtn').onclick = ()=> launchBossBattle();
 
 async function doLogin(mode){
   const val = document.getElementById('nameInput').value.trim();
@@ -793,13 +1422,14 @@ async function doLogin(mode){
     });
     authToken = res.token;
     localStorage.setItem('oa_token', authToken);
-    profile = res.profile || await loadProfile(val);
+    profile = mergeProfile(res.profile || await loadProfile(val), val);
     username = profile.name;
   }catch(e){
     setLoginStatus(e.message || 'Échec de connexion.', 'var(--red)');
     return;
   }
   tickEconomy();
+  document.getElementById('difficultySelect').value = profile.battleDifficulty || 'normal';
   setLoginStatus('', 'var(--paper-dim)');
   document.getElementById('loginModal').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -813,9 +1443,10 @@ async function restoreSession(){
   if(!authToken) return false;
   try{
     const res = await apiRequest('/api/me');
-    profile = res.profile;
+    profile = mergeProfile(res.profile, res.profile.name);
     username = profile.name;
     tickEconomy();
+    document.getElementById('difficultySelect').value = profile.battleDifficulty || 'normal';
     document.getElementById('loginModal').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     initMap();

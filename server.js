@@ -18,7 +18,7 @@ const pool = DATABASE_URL
 const LEVEL_COUNT = 20;
 
 function createEmptyStore() {
-  return { accounts: {}, clans: {}, sessions: {} };
+  return { accounts: {}, clans: {}, sessions: {}, marketListings: [] };
 }
 
 function normalizeStore(source) {
@@ -27,6 +27,7 @@ function normalizeStore(source) {
     accounts: parsed.accounts || {},
     clans: parsed.clans || {},
     sessions: parsed.sessions || {},
+    marketListings: Array.isArray(parsed.marketListings) ? parsed.marketListings : [],
   };
 }
 
@@ -51,7 +52,10 @@ async function initializeStore() {
   `);
   const result = await pool.query('SELECT payload FROM game_state WHERE id = $1', ['store']);
   if (result.rowCount > 0 && result.rows[0] && result.rows[0].payload) {
-    store = normalizeStore(result.rows[0].payload);
+    const loaded = normalizeStore(result.rows[0].payload);
+    loaded.clans = Object.fromEntries(Object.entries(loaded.clans).map(([clanName, clan]) => [clanName, normalizeClan(clanName, clan)]));
+    loaded.marketListings = loaded.marketListings.map(normalizeMarketListing);
+    store = loaded;
     return;
   }
   await saveStore();
@@ -98,7 +102,20 @@ function defaultProfile(name) {
     money: 2000,
     gems: 25,
     population: 100,
-    units: { infantry: 0, armor: 0, heavy: 0, jet: 0, carrier: 0 },
+    xp: 0,
+    commanderLevel: 1,
+    prestige: 0,
+    prestigePoints: 0,
+    techPoints: 0,
+    tech: {},
+    achievements: {},
+    unitUpgrades: {},
+    general: null,
+    bank: { deposited: 0, lastTick: Date.now() },
+    battleDifficulty: 'normal',
+    battleWins: 0,
+    battleLosses: 0,
+    units: { infantry: 0, armor: 0, heavy: 0, jet: 0, carrier: 0, drone: 0, artillery: 0, helicopter: 0, submarine: 0, missile: 0 },
     factories: { f1: 0, f2: 0, f3: 0 },
     bonusPower: 0,
     levelsCompleted: new Array(LEVEL_COUNT).fill(false),
@@ -110,16 +127,97 @@ function defaultProfile(name) {
 function normalizeProfile(profile, name) {
   const base = defaultProfile(name);
   const source = profile || {};
+  const commanderLevel = Number(source.commanderLevel) || 1;
   return {
     ...base,
     ...source,
     name: source.name || name,
     clan: source.clan || null,
+    xp: Math.max(0, Number(source.xp) || 0),
+    commanderLevel,
+    prestige: Math.max(0, Number(source.prestige) || 0),
+    prestigePoints: Math.max(0, Number(source.prestigePoints) || 0),
+    techPoints: Math.max(0, Number(source.techPoints) || 0),
+    tech: { ...(source.tech || {}) },
+    achievements: { ...(source.achievements || {}) },
+    unitUpgrades: { ...(source.unitUpgrades || {}) },
+    general: source.general || null,
+    bank: {
+      deposited: Math.max(0, Number(source.bank && source.bank.deposited) || 0),
+      lastTick: Number(source.bank && source.bank.lastTick) || Date.now(),
+    },
+    battleDifficulty: ['easy', 'normal', 'hard', 'nightmare'].includes(source.battleDifficulty) ? source.battleDifficulty : 'normal',
+    battleWins: Math.max(0, Number(source.battleWins) || 0),
+    battleLosses: Math.max(0, Number(source.battleLosses) || 0),
     units: { ...base.units, ...(source.units || {}) },
     factories: { ...base.factories, ...(source.factories || {}) },
     levelsCompleted: Array.from({ length: LEVEL_COUNT }, (_, index) => !!(source.levelsCompleted && source.levelsCompleted[index])),
     questsClaimed: { ...(source.questsClaimed || {}) },
     lastTick: Number(source.lastTick) || Date.now(),
+  };
+}
+
+function commanderLevelFromXp(xp) {
+  return Math.max(1, Math.floor(Math.sqrt(Math.max(0, Number(xp) || 0) / 250)) + 1);
+}
+
+function passiveIncomePerSecond(profile) {
+  const factoryIncome = Object.values(profile.factories || {}).reduce((sum, count, index) => sum + (Number(count || 0) * [2, 8, 20][index]), 0);
+  const generalBonus = profile.general && profile.general.id === 'economist' ? 1.15 : 1;
+  return factoryIncome * generalBonus;
+}
+
+function applyPassiveProgress(profile) {
+  const now = Date.now();
+  const target = normalizeProfile(profile, profile && profile.name);
+  const elapsed = Math.max(0, now - Number(target.lastTick || now));
+  if (elapsed > 0) {
+    target.money += passiveIncomePerSecond(target) * (elapsed / 1000);
+    if (target.bank && target.bank.deposited > 0) {
+      const bankElapsed = Math.max(0, now - Number(target.bank.lastTick || now));
+      const bankInterest = target.prestige >= 1 ? 0.0009 : 0.0006;
+      target.bank.deposited += target.bank.deposited * bankInterest * (bankElapsed / 60000);
+      target.bank.lastTick = now;
+    }
+    target.lastTick = now;
+  }
+  const computedLevel = commanderLevelFromXp(target.xp);
+  if (computedLevel > Number(target.commanderLevel || 1)) {
+    target.techPoints += computedLevel - Number(target.commanderLevel || 1);
+    target.commanderLevel = computedLevel;
+  }
+  return target;
+}
+
+function normalizeClan(name, clan) {
+  const source = clan || {};
+  return {
+    name,
+    members: Array.isArray(source.members) ? source.members : [],
+    created: Number(source.created) || Date.now(),
+    level: Math.max(1, Number(source.level) || 1),
+    xp: Math.max(0, Number(source.xp) || 0),
+    warPoints: Math.max(0, Number(source.warPoints) || 0),
+    missions: Array.isArray(source.missions) ? source.missions : [
+      { id: 'm1', txt: 'Gagner 5 batailles', reward: { gems: 10 }, progress: 0, target: 5, claimed: false },
+      { id: 'm2', txt: 'Construire 10 usines en équipe', reward: { money: 1000 }, progress: 0, target: 10, claimed: false },
+      { id: 'm3', txt: 'Réunir 20 membres de puissance', reward: { gems: 25 }, progress: 0, target: 20, claimed: false },
+    ],
+    chat: Array.isArray(source.chat) ? source.chat : [],
+  };
+}
+
+function normalizeMarketListing(listing) {
+  const source = listing || {};
+  return {
+    id: source.id || crypto.randomBytes(8).toString('hex'),
+    seller: source.seller || 'inconnu',
+    sellerKey: source.sellerKey || accountKey(source.seller || ''),
+    kind: ['unit', 'gems', 'money'].includes(source.kind) ? source.kind : 'unit',
+    unitId: source.unitId || 'infantry',
+    quantity: Math.max(1, Number(source.quantity) || 1),
+    price: Math.max(1, Number(source.price) || 1),
+    createdAt: Number(source.createdAt) || Date.now(),
   };
 }
 
@@ -133,8 +231,14 @@ function computePower(profile) {
   };
   let total = Number(profile.bonusPower || 0);
   for (const [unit, count] of Object.entries(profile.units || {})) {
-    total += Number(count || 0) * (unitPower[unit] || 0);
+    const upgrades = profile.unitUpgrades && profile.unitUpgrades[unit] ? profile.unitUpgrades[unit] : { armor: 0, precision: 0, speed: 0 };
+    const owned = Number(count || 0);
+    total += owned * (unitPower[unit] || 0) + owned * ((Number(upgrades.armor || 0) * 2) + (Number(upgrades.precision || 0) * 3) + Number(upgrades.speed || 0));
   }
+  if (profile.general === 'tactician') total *= 1.08;
+  if (profile.general === 'admiral') total += ((Number(profile.units && profile.units.submarine) || 0) + (Number(profile.units && profile.units.carrier) || 0)) * 12;
+  if (profile.tech && profile.tech.precision) total *= 1.08;
+  total += (Number(profile.prestige || 0) * 75);
   return Math.round(total);
 }
 
@@ -147,6 +251,8 @@ function leaderboardEntries() {
       clan: profile.clan,
       population: profile.population,
       money: profile.money,
+      level: profile.commanderLevel || 1,
+      prestige: profile.prestige || 0,
       power: computePower(profile),
       updated: profile.lastTick || Date.now(),
     }));
@@ -233,6 +339,18 @@ function createSession(name) {
   return token;
 }
 
+function getAccountByName(name) {
+  return store.accounts[accountKey(name)] || null;
+}
+
+function getProfileForAccount(account) {
+  if (!account) return null;
+  const activeProfile = applyPassiveProgress(account.profile);
+  account.profile = activeProfile;
+  account.updatedAt = Date.now();
+  return activeProfile;
+}
+
 async function upsertAccount(name, password) {
   const key = accountKey(name);
   if (store.accounts[key]) throw new Error('Ce compte existe deja.');
@@ -258,6 +376,7 @@ async function loginAccount(name, password) {
   const hash = hashPassword(password, account.salt);
   if (hash !== account.passwordHash) throw new Error('Mot de passe incorrect.');
   const token = createSession(account.name);
+  getProfileForAccount(account);
   await saveStore();
   return { token, profile: normalizeProfile(account.profile, account.name) };
 }
@@ -278,7 +397,26 @@ async function updateProfile(auth, body) {
 
 async function updateClans(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Format de clan invalide.');
-  store.clans = body;
+  store.clans = Object.fromEntries(Object.entries(body).map(([clanName, clan]) => [clanName, normalizeClan(clanName, clan)]));
+  await saveStore();
+  return store.clans;
+}
+
+function normalizeMarket() {
+  store.marketListings = (store.marketListings || []).map(normalizeMarketListing);
+}
+
+async function addClanMessage(clanName, message, sender) {
+  if (!store.clans[clanName]) throw new Error('Clan introuvable.');
+  const clan = normalizeClan(clanName, store.clans[clanName]);
+  clan.chat.push({
+    id: crypto.randomBytes(8).toString('hex'),
+    sender,
+    text: String(message).slice(0, 200),
+    createdAt: Date.now(),
+  });
+  clan.chat = clan.chat.slice(-40);
+  store.clans[clanName] = clan;
   await saveStore();
   return store.clans;
 }
@@ -295,7 +433,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/me') {
       const auth = requireAuth(req);
       if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
-      return sendJson(res, 200, { profile: normalizeProfile(auth.account.profile, auth.account.name) });
+      const profile = getProfileForAccount(auth.account);
+      await saveStore();
+      return sendJson(res, 200, { profile: normalizeProfile(profile, auth.account.name) });
     }
 
     if (req.method === 'POST' && url.pathname === '/api/register') {
@@ -326,6 +466,121 @@ const server = http.createServer(async (req, res) => {
       if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
       const body = await readBody(req);
       return sendJson(res, 200, { clans: await updateClans(body || {}) });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/clan-chat') {
+      const clanName = String(url.searchParams.get('clan') || '');
+      const clan = store.clans[clanName];
+      if (!clan) return sendJson(res, 200, { messages: [] });
+      return sendJson(res, 200, { messages: normalizeClan(clanName, clan).chat });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/clan-chat') {
+      const auth = requireAuth(req);
+      if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
+      const body = await readBody(req);
+      const clanName = String(body && body.clan ? body.clan : '');
+      const text = String(body && body.text ? body.text : '').trim();
+      if (!clanName || !text) return sendJson(res, 400, { error: 'Message invalide.' });
+      const clan = store.clans[clanName];
+      if (!clan) return sendJson(res, 404, { error: 'Clan introuvable.' });
+      const normalized = normalizeClan(clanName, clan);
+      normalized.chat.push({
+        id: crypto.randomBytes(8).toString('hex'),
+        sender: auth.account.name,
+        text: text.slice(0, 200),
+        createdAt: Date.now(),
+      });
+      normalized.chat = normalized.chat.slice(-40);
+      store.clans[clanName] = normalized;
+      await saveStore();
+      return sendJson(res, 200, { messages: normalized.chat });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/market') {
+      normalizeMarket();
+      return sendJson(res, 200, { listings: store.marketListings });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/market/list') {
+      const auth = requireAuth(req);
+      if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
+      const body = await readBody(req);
+      const kind = ['unit', 'gems', 'money'].includes(body && body.kind) ? body.kind : 'unit';
+      const unitId = String(body && body.unitId ? body.unitId : 'infantry');
+      const quantity = Math.max(1, Number(body && body.quantity) || 1);
+      const price = Math.max(1, Number(body && body.price) || 1);
+      const profile = auth.account.profile;
+      if (kind === 'unit') {
+        if (!profile.units[unitId] || profile.units[unitId] < quantity) return sendJson(res, 400, { error: 'Pas assez d’unités.' });
+        profile.units[unitId] -= quantity;
+      } else if (kind === 'gems') {
+        if (profile.gems < quantity) return sendJson(res, 400, { error: 'Pas assez de gemmes.' });
+        profile.gems -= quantity;
+      } else if (kind === 'money') {
+        if (profile.money < quantity) return sendJson(res, 400, { error: 'Pas assez d’argent.' });
+        profile.money -= quantity;
+      }
+      store.marketListings.unshift(normalizeMarketListing({
+        seller: auth.account.name,
+        sellerKey: auth.key,
+        kind,
+        unitId,
+        quantity,
+        price,
+      }));
+      store.marketListings = store.marketListings.slice(0, 40);
+      await saveStore();
+      return sendJson(res, 200, { listings: store.marketListings });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/market/buy') {
+      const auth = requireAuth(req);
+      if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
+      const body = await readBody(req);
+      const listingId = String(body && body.id ? body.id : '');
+      const index = store.marketListings.findIndex(item => item.id === listingId);
+      if (index === -1) return sendJson(res, 404, { error: 'Annonce introuvable.' });
+      const listing = normalizeMarketListing(store.marketListings[index]);
+      if (auth.account.profile.money < listing.price) return sendJson(res, 400, { error: 'Pas assez d’argent.' });
+      const sellerAccount = getAccountByName(listing.seller);
+      if (!sellerAccount) return sendJson(res, 400, { error: 'Vendeur introuvable.' });
+      const buyerProfile = auth.account.profile;
+      const sellerProfile = sellerAccount.profile;
+      buyerProfile.money -= listing.price;
+      sellerProfile.money += listing.price;
+      if (listing.kind === 'unit') {
+        buyerProfile.units[listing.unitId] = (buyerProfile.units[listing.unitId] || 0) + listing.quantity;
+      } else if (listing.kind === 'gems') {
+        buyerProfile.gems += listing.quantity;
+      } else if (listing.kind === 'money') {
+        buyerProfile.money += listing.quantity;
+      }
+      store.marketListings.splice(index, 1);
+      sellerAccount.updatedAt = Date.now();
+      auth.account.updatedAt = Date.now();
+      await saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (req.method === 'DELETE' && url.pathname === '/api/market/cancel') {
+      const auth = requireAuth(req);
+      if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
+      const body = await readBody(req);
+      const listingId = String(body && body.id ? body.id : '');
+      const index = store.marketListings.findIndex(item => item.id === listingId && item.sellerKey === auth.key);
+      if (index === -1) return sendJson(res, 404, { error: 'Annonce introuvable.' });
+      const listing = normalizeMarketListing(store.marketListings[index]);
+      if (listing.kind === 'unit') {
+        auth.account.profile.units[listing.unitId] = (auth.account.profile.units[listing.unitId] || 0) + listing.quantity;
+      } else if (listing.kind === 'gems') {
+        auth.account.profile.gems += listing.quantity;
+      } else if (listing.kind === 'money') {
+        auth.account.profile.money += listing.quantity;
+      }
+      store.marketListings.splice(index, 1);
+      await saveStore();
+      return sendJson(res, 200, { ok: true });
     }
 
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
