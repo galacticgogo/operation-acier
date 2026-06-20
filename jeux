@@ -169,6 +169,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
       <div class="stat gem"><span class="ic">💎</span><span class="v" id="statGem">0</span></div>
       <div class="stat"><span class="ic">⚔️</span><span class="v" id="statPower">0</span></div>
     </div>
+    <button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button>
   </div>
 
   <div id="nav">
@@ -776,6 +777,7 @@ setInterval(()=>{
 /* ============================ LOGIN / INIT ============================ */
 document.getElementById('loginBtn').onclick = ()=> doLogin('login');
 document.getElementById('registerBtn').onclick = ()=> doLogin('register');
+document.getElementById('logoutBtn').onclick = ()=> logout();
 document.getElementById('nameInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
 document.getElementById('passwordInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
 
@@ -825,6 +827,21 @@ async function restoreSession(){
     localStorage.removeItem('oa_token');
     return false;
   }
+}
+
+async function logout(){
+  try{
+    if(authToken) await apiRequest('/api/logout', { method: 'POST' });
+  }catch(e){}
+  authToken = '';
+  profile = null;
+  username = null;
+  localStorage.removeItem('oa_token');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginModal').style.display = 'flex';
+  document.getElementById('nameInput').value = '';
+  document.getElementById('passwordInput').value = '';
+  setLoginStatus('Déconnecté.', 'var(--paper-dim)');
 }
 
 restoreSession();

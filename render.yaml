@@ -7,3 +7,10 @@ services:
     buildCommand: npm install
     startCommand: npm start
     autoDeploy: true
+    disk:
+      name: operation-acier-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
