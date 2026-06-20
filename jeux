@@ -301,7 +301,7 @@ async function loadProfile(name){
   return defaultProfile(name);
 }
 async function saveProfile(){
-  try{ await apiRequest('/api/me', { method:'PUT', body:{ profile } }); }catch(e){ console.error('save failed',e); }
+  try{ await apiRequest('/api/me', { method:'PUT', body: profile }); }catch(e){ console.error('save failed',e); }
 }
 
 /* shared leaderboard */

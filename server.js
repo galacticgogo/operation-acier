@@ -217,7 +217,10 @@ function loginAccount(name, password) {
 
 function updateProfile(auth, body) {
   const account = auth.account;
-  const incoming = normalizeProfile(body || {}, account.name);
+  const source = body && typeof body === 'object' && body.profile && typeof body.profile === 'object'
+    ? body.profile
+    : body;
+  const incoming = normalizeProfile(source || {}, account.name);
   incoming.name = account.name;
   incoming.lastTick = Number(incoming.lastTick) || Date.now();
   account.profile = incoming;
