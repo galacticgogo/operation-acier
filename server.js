@@ -2,27 +2,38 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { Pool } = require('pg');
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
 const GAME_FILE = path.join(ROOT, 'jeux');
-const DATA_DIR = process.env.DATA_DIR || ROOT;
-const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const DATA_FILE = path.join(ROOT, 'data.json');
+const DATABASE_URL = process.env.DATABASE_URL || '';
+const pool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+  : null;
 const LEVEL_COUNT = 20;
 
 function createEmptyStore() {
   return { accounts: {}, clans: {}, sessions: {} };
 }
 
+function normalizeStore(source) {
+  const parsed = source || {};
+  return {
+    accounts: parsed.accounts || {},
+    clans: parsed.clans || {},
+    sessions: parsed.sessions || {},
+  };
+}
+
 function loadStore() {
   try {
     if (!fs.existsSync(DATA_FILE)) return createEmptyStore();
-    const parsed = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    return {
-      accounts: parsed.accounts || {},
-      clans: parsed.clans || {},
-      sessions: parsed.sessions || {},
-    };
+    return normalizeStore(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
   } catch {
     return createEmptyStore();
   }
@@ -30,10 +41,46 @@ function loadStore() {
 
 let store = loadStore();
 
-function saveStore() {
+async function initializeStore() {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_state (
+      id TEXT PRIMARY KEY,
+      payload JSONB NOT NULL
+    )
+  `);
+  const result = await pool.query('SELECT payload FROM game_state WHERE id = $1', ['store']);
+  if (result.rowCount > 0 && result.rows[0] && result.rows[0].payload) {
+    store = normalizeStore(result.rows[0].payload);
+    return;
+  }
+  await saveStore();
+}
+
+function saveStoreToFile() {
   const tmpFile = `${DATA_FILE}.tmp`;
   fs.writeFileSync(tmpFile, JSON.stringify(store, null, 2), 'utf8');
   fs.renameSync(tmpFile, DATA_FILE);
+}
+
+async function saveStore() {
+  if (pool) {
+    try {
+      await pool.query(
+        `
+          INSERT INTO game_state (id, payload)
+          VALUES ($1, $2)
+          ON CONFLICT (id)
+          DO UPDATE SET payload = EXCLUDED.payload
+        `,
+        ['store', store],
+      );
+      return;
+    } catch (error) {
+      console.error('Database save failed, falling back to file storage:', error);
+    }
+  }
+  saveStoreToFile();
 }
 
 function normalizeName(name) {
@@ -186,7 +233,7 @@ function createSession(name) {
   return token;
 }
 
-function upsertAccount(name, password) {
+async function upsertAccount(name, password) {
   const key = accountKey(name);
   if (store.accounts[key]) throw new Error('Ce compte existe deja.');
   const salt = crypto.randomBytes(16).toString('hex');
@@ -200,22 +247,22 @@ function upsertAccount(name, password) {
   };
   store.accounts[key] = account;
   const token = createSession(name);
-  saveStore();
+  await saveStore();
   return { token, profile: normalizeProfile(account.profile, account.name) };
 }
 
-function loginAccount(name, password) {
+async function loginAccount(name, password) {
   const key = accountKey(name);
   const account = store.accounts[key];
   if (!account) throw new Error('Compte introuvable.');
   const hash = hashPassword(password, account.salt);
   if (hash !== account.passwordHash) throw new Error('Mot de passe incorrect.');
   const token = createSession(account.name);
-  saveStore();
+  await saveStore();
   return { token, profile: normalizeProfile(account.profile, account.name) };
 }
 
-function updateProfile(auth, body) {
+async function updateProfile(auth, body) {
   const account = auth.account;
   const source = body && typeof body === 'object' && body.profile && typeof body.profile === 'object'
     ? body.profile
@@ -225,19 +272,20 @@ function updateProfile(auth, body) {
   incoming.lastTick = Number(incoming.lastTick) || Date.now();
   account.profile = incoming;
   account.updatedAt = Date.now();
-  saveStore();
+  await saveStore();
   return normalizeProfile(account.profile, account.name);
 }
 
-function updateClans(body) {
+async function updateClans(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Format de clan invalide.');
   store.clans = body;
-  saveStore();
+  await saveStore();
   return store.clans;
 }
 
 const server = http.createServer(async (req, res) => {
   try {
+    await initializeStore();
     const url = new URL(req.url, `http://${req.headers.host}`);
 
     if (req.method === 'GET' && url.pathname === '/') {
@@ -253,20 +301,20 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/register') {
       const body = await readBody(req);
       const creds = validateCredentials(body || {});
-      return sendJson(res, 200, upsertAccount(creds.name, creds.password));
+      return sendJson(res, 200, await upsertAccount(creds.name, creds.password));
     }
 
     if (req.method === 'POST' && url.pathname === '/api/login') {
       const body = await readBody(req);
       const creds = validateCredentials(body || {});
-      return sendJson(res, 200, loginAccount(creds.name, creds.password));
+      return sendJson(res, 200, await loginAccount(creds.name, creds.password));
     }
 
     if (req.method === 'PUT' && url.pathname === '/api/me') {
       const auth = requireAuth(req);
       if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
       const body = await readBody(req);
-      return sendJson(res, 200, { profile: updateProfile(auth, body || {}) });
+      return sendJson(res, 200, { profile: await updateProfile(auth, body || {}) });
     }
 
     if (req.method === 'GET' && url.pathname === '/api/clans') {
@@ -277,7 +325,7 @@ const server = http.createServer(async (req, res) => {
       const auth = requireAuth(req);
       if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
       const body = await readBody(req);
-      return sendJson(res, 200, { clans: updateClans(body || {}) });
+      return sendJson(res, 200, { clans: await updateClans(body || {}) });
     }
 
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
@@ -288,7 +336,7 @@ const server = http.createServer(async (req, res) => {
       const auth = requireAuth(req);
       if (auth) {
         delete store.sessions[auth.token];
-        saveStore();
+        await saveStore();
       }
       return sendJson(res, 200, { ok: true });
     }
