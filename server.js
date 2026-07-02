@@ -4,18 +4,22 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
 const GAME_FILE = path.join(ROOT, 'jeux');
 const DATA_FILE = path.join(ROOT, 'data.json');
 const DATABASE_URL = process.env.DATABASE_URL || '';
-const pool = DATABASE_URL
+let pool = DATABASE_URL
   ? new Pool({
       connectionString: DATABASE_URL,
       ssl: { rejectUnauthorized: false },
     })
   : null;
 const LEVEL_COUNT = 20;
+const HIDDEN_LEADERBOARD_ACCOUNTS = new Set(['galacticgogo9']);
+const SEED_ACCOUNT_NAME = 'GalacticGogo9';
+const SEED_ACCOUNT_PASSWORD = 'Gogo2026!';
+const TEST_ACCOUNT_PREFIXES = ['test', 'testuser', 'testuserregistration'];
 
 function createEmptyStore() {
   return { accounts: {}, clans: {}, sessions: {}, marketListings: [] };
@@ -41,24 +45,93 @@ function loadStore() {
 }
 
 let store = loadStore();
+let initializationPromise = null;
+
+function isTestAccountName(name) {
+  const key = accountKey(name || '');
+  return TEST_ACCOUNT_PREFIXES.some((prefix) => key === prefix || key.startsWith(`${prefix}`));
+}
+
+function removeTestAccounts() {
+  const filteredAccounts = Object.fromEntries(
+    Object.entries(store.accounts).filter(([key, account]) => !isTestAccountName(account && account.name ? account.name : key)),
+  );
+  store.accounts = filteredAccounts;
+}
+
+function ensureSeedAccount() {
+  const key = accountKey(SEED_ACCOUNT_NAME);
+  const existing = store.accounts[key];
+  if (existing) {
+    const existingSalt = existing.salt || crypto.randomBytes(16).toString('hex');
+    existing.passwordHash = hashPassword(SEED_ACCOUNT_PASSWORD, existingSalt);
+    existing.salt = existingSalt;
+    existing.updatedAt = Date.now();
+    existing.profile = normalizeProfile(existing.profile || defaultProfile(SEED_ACCOUNT_NAME), SEED_ACCOUNT_NAME);
+    existing.profile.hideFromLeaderboard = true;
+    existing.name = SEED_ACCOUNT_NAME;
+    return existing;
+  }
+  const salt = crypto.randomBytes(16).toString('hex');
+  store.accounts[key] = {
+    name: SEED_ACCOUNT_NAME,
+    salt,
+    passwordHash: hashPassword(SEED_ACCOUNT_PASSWORD, salt),
+    profile: { ...defaultProfile(SEED_ACCOUNT_NAME), hideFromLeaderboard: true },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  return store.accounts[key];
+}
 
 async function initializeStore() {
-  if (!pool) return;
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS game_state (
-      id TEXT PRIMARY KEY,
-      payload JSONB NOT NULL
-    )
-  `);
-  const result = await pool.query('SELECT payload FROM game_state WHERE id = $1', ['store']);
-  if (result.rowCount > 0 && result.rows[0] && result.rows[0].payload) {
-    const loaded = normalizeStore(result.rows[0].payload);
-    loaded.clans = Object.fromEntries(Object.entries(loaded.clans).map(([clanName, clan]) => [clanName, normalizeClan(clanName, clan)]));
-    loaded.marketListings = loaded.marketListings.map(normalizeMarketListing);
-    store = loaded;
+  removeTestAccounts();
+  ensureSeedAccount();
+  if (!pool) {
+    await saveStore();
     return;
   }
-  await saveStore();
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS game_state (
+        id TEXT PRIMARY KEY,
+        payload JSONB NOT NULL
+      )
+    `);
+    const result = await pool.query('SELECT payload FROM game_state WHERE id = $1', ['store']);
+    if (result.rowCount > 0 && result.rows[0] && result.rows[0].payload) {
+      const loaded = normalizeStore(result.rows[0].payload);
+      loaded.clans = Object.fromEntries(Object.entries(loaded.clans).map(([clanName, clan]) => [clanName, normalizeClan(clanName, clan)]));
+      loaded.marketListings = loaded.marketListings.map(normalizeMarketListing);
+      store = loaded;
+    }
+    ensureSeedAccount();
+    await saveStore();
+  } catch (error) {
+    console.error('Database unavailable, falling back to file storage:', error);
+    if (pool) {
+      try {
+        await pool.end();
+      } catch {}
+    }
+    pool = null;
+    ensureSeedAccount();
+    await saveStore();
+  }
+}
+
+async function ensureInitialized() {
+  if (!initializationPromise) {
+    initializationPromise = (async () => {
+      try {
+        await initializeStore();
+      } catch (error) {
+        initializationPromise = null;
+        throw error;
+      }
+    })();
+  }
+  return initializationPromise;
 }
 
 function saveStoreToFile() {
@@ -102,6 +175,7 @@ function defaultProfile(name) {
     money: 2000,
     gems: 25,
     population: 100,
+    hideFromLeaderboard: false,
     xp: 0,
     commanderLevel: 1,
     prestige: 0,
@@ -244,6 +318,10 @@ function computePower(profile) {
 
 function leaderboardEntries() {
   return Object.values(store.accounts)
+    .filter((account) => {
+      const profile = account && account.profile ? account.profile : {};
+      return !profile.hideFromLeaderboard && !HIDDEN_LEADERBOARD_ACCOUNTS.has(accountKey(account.name));
+    })
     .map((account) => normalizeProfile(account.profile, account.name))
     .sort((a, b) => (Number(b.population || 0) - Number(a.population || 0)) || (computePower(b) - computePower(a)) || a.name.localeCompare(b.name))
     .map((profile) => ({
@@ -353,7 +431,13 @@ function getProfileForAccount(account) {
 
 async function upsertAccount(name, password) {
   const key = accountKey(name);
-  if (store.accounts[key]) throw new Error('Ce compte existe deja.');
+  if (store.accounts[key]) {
+    const existing = store.accounts[key];
+    const token = createSession(existing.name);
+    getProfileForAccount(existing);
+    await saveStore();
+    return { token, profile: normalizeProfile(existing.profile, existing.name) };
+  }
   const salt = crypto.randomBytes(16).toString('hex');
   const account = {
     name,
@@ -423,8 +507,16 @@ async function addClanMessage(clanName, message, sender) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    await initializeStore();
     const url = new URL(req.url, `http://${req.headers.host}`);
+    const isHealthCheck = req.method === 'GET' && url.pathname === '/healthz';
+
+    if (!isHealthCheck) {
+      await ensureInitialized();
+    }
+
+    if (req.method === 'GET' && url.pathname === '/healthz') {
+      return sendJson(res, 200, { status: 'ok' });
+    }
 
     if (req.method === 'GET' && url.pathname === '/') {
       return sendFile(res, GAME_FILE, 'text/html; charset=utf-8');
@@ -602,6 +694,22 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+ensureInitialized().catch((error) => {
+  console.error('Initialisation de démarrage impossible:', error);
+});
+
 server.listen(PORT, () => {
   console.log(`Operation Acier en ligne sur http://localhost:${PORT}`);
+});
+
+process.on('SIGTERM', () => {
+  server.close(() => {
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  server.close(() => {
+    process.exit(0);
+  });
 });

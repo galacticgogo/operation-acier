@@ -1,0 +1,21 @@
+app = "operation-acier"
+primary_region = "cdg"
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "15s"
+  timeout = "2s"
+  method = "GET"
+  path = "/healthz"
