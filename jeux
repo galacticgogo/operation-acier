@@ -211,6 +211,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <button class="navbtn" data-view="quests">Quêtes</button>
     <button class="navbtn" data-view="clan">Clan</button>
     <button class="navbtn" data-view="board">Classement</button>
+    <button class="navbtn" data-view="admin" id="adminBtn" style="display:none;">Admin</button>
   </div>
 
   <div id="main">
@@ -245,6 +246,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <div class="view" id="view-quests"><div class="pview" id="questsBody"></div></div>
     <div class="view" id="view-clan"><div class="pview" id="clanBody"></div></div>
     <div class="view" id="view-board"><div class="pview" id="boardBody"></div></div>
+    <div class="view" id="view-admin"><div class="pview" id="adminBody"></div></div>
   </div>
 </div>
 
@@ -936,9 +938,81 @@ document.querySelectorAll('.navbtn').forEach(btn=>{
     if(btn.dataset.view==='shop') renderShop();
     if(btn.dataset.view==='progress') renderProgress();
     if(btn.dataset.view==='market') renderMarket();
+    if(btn.dataset.view==='admin') renderAdmin();
     if(btn.dataset.view==='map') resizeRenderer();
   };
 });
+
+/* ============================ ADMIN ============================ */
+function renderAdmin(){
+  const el = document.getElementById('adminBody');
+  let html = `
+    <div class="section-title display">Panneau Admin</div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:16px;">
+      <h3 style="margin:0 0 12px;color:var(--amber);">Exécuter une commande</h3>
+      <textarea id="adminCommand" placeholder="Ex: give money PlayerName 1000" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--line);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:13px;border-radius:3px;margin-bottom:8px;" rows="2"></textarea>
+      <button class="btn" id="adminExecBtn" style="width:100%;margin:0;">Exécuter</button>
+      <div id="adminResult" style="margin-top:8px;padding:8px;background:var(--panel2);border:1px solid var(--line);border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;min-height:40px;display:none;"></div>
+    </div>
+    
+    <div class="section-title display">Commandes disponibles</div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;">
+      <p style="margin:0 0 8px;color:var(--khaki);"><b>Donner</b></p>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give money &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give gems &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give xp &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:16px;overflow-x:auto;">give units &lt;name&gt; &lt;unitId&gt; &lt;amount&gt;</code>
+      
+      <p style="margin:0 0 8px;color:var(--khaki);"><b>Définir</b></p>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set money &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set gems &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set xp &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set level &lt;name&gt; &lt;level&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set population &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set prestige &lt;name&gt; &lt;amount&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:16px;overflow-x:auto;">set units &lt;name&gt; &lt;unitId&gt; &lt;amount&gt;</code>
+      
+      <p style="margin:0 0 8px;color:var(--khaki);"><b>Gestion</b></p>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">get &lt;name&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">reset &lt;name&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">delete &lt;name&gt;</code>
+      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">list accounts</code>
+    </div>
+  `;
+  el.innerHTML = html;
+  
+  document.getElementById('adminExecBtn').onclick = async ()=>{
+    const cmd = document.getElementById('adminCommand').value.trim();
+    if(!cmd) return;
+    const resultEl = document.getElementById('adminResult');
+    try{
+      const res = await apiRequest('/api/admin/command', {
+        method: 'POST',
+        body: { command: cmd }
+      });
+      resultEl.style.display = 'block';
+      resultEl.style.color = 'var(--green)';
+      if(res.ok){
+        resultEl.textContent = '✓ Succès: ' + (res.message || JSON.stringify(res));
+      } else if(res.accounts){
+        resultEl.textContent = '✓ ' + JSON.stringify(res.accounts, null, 2);
+      } else if(res.profile){
+        resultEl.textContent = '✓ ' + JSON.stringify(res.profile, null, 2);
+      } else {
+        resultEl.textContent = '✓ ' + JSON.stringify(res, null, 2);
+      }
+      document.getElementById('adminCommand').value = '';
+    }catch(e){
+      resultEl.style.display = 'block';
+      resultEl.style.color = 'var(--red)';
+      resultEl.textContent = '✗ Erreur: ' + (e.message || e);
+    }
+  };
+  
+  document.getElementById('adminCommand').addEventListener('keydown', e=>{
+    if(e.key==='Enter' && e.ctrlKey) document.getElementById('adminExecBtn').click();
+  });
+}
 
 /* ============================ SHOP ============================ */
 function renderShop(){
@@ -1383,6 +1457,12 @@ function refreshHUD(){
   document.getElementById('statGem').textContent = profile.gems;
   document.getElementById('statLevel').textContent = commanderLevelValue();
   document.getElementById('statPower').textContent = computePower(profile);
+  
+  // Afficher/masquer le bouton admin
+  const adminBtn = document.getElementById('adminBtn');
+  if(adminBtn){
+    adminBtn.style.display = profile.name === 'GalacticGogo9' ? 'block' : 'none';
+  }
 }
 function afterChange(){ refreshHUD(); saveProfile(); }
 
