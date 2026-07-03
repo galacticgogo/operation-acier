@@ -336,6 +336,238 @@ function leaderboardEntries() {
     }));
 }
 
+function isAdmin(auth) {
+  return auth && accountKey(auth.account.name) === accountKey(SEED_ACCOUNT_NAME);
+}
+
+async function executeAdminCommand(command, auth) {
+  if (!isAdmin(auth)) throw new Error('Acces admin requis.');
+  
+  const parts = (command || '').trim().split(/\s+/);
+  if (!parts[0]) throw new Error('Commande vide.');
+  
+  const cmd = parts[0].toLowerCase();
+  
+  // give money <name> <amount>
+  if (cmd === 'give' && parts[1] === 'money' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.money += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount} argent donne a ${targetName}` };
+  }
+  
+  // give gems <name> <amount>
+  if (cmd === 'give' && parts[1] === 'gems' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.gems += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount} gemmes donnees a ${targetName}` };
+  }
+  
+  // give units <name> <unitId> <amount>
+  if (cmd === 'give' && parts[1] === 'units' && parts[2] && parts[3] && parts[4]) {
+    const targetName = parts[2];
+    const unitId = parts[3].toLowerCase();
+    const amount = Number(parts[4]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    if (!account.profile.units.hasOwnProperty(unitId)) throw new Error('Unite invalide.');
+    account.profile.units[unitId] += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount}x ${unitId} donne a ${targetName}` };
+  }
+  
+  // set money <name> <amount>
+  if (cmd === 'set' && parts[1] === 'money' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.money = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Argent de ${targetName} defini a ${amount}` };
+  }
+  
+  // set gems <name> <amount>
+  if (cmd === 'set' && parts[1] === 'gems' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.gems = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Gemmes de ${targetName} definies a ${amount}` };
+  }
+  
+  // set xp <name> <amount>
+  if (cmd === 'set' && parts[1] === 'xp' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.xp = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `XP de ${targetName} defini a ${amount}` };
+  }
+  
+  // set level <name> <level>
+  if (cmd === 'set' && parts[1] === 'level' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const level = Number(parts[3]);
+    if (isNaN(level) || level < 1) throw new Error('Niveau invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.commanderLevel = level;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Niveau de ${targetName} defini a ${level}` };
+  }
+  
+  // set population <name> <amount>
+  if (cmd === 'set' && parts[1] === 'population' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.population = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Population de ${targetName} definie a ${amount}` };
+  }
+  
+  // set prestige <name> <amount>
+  if (cmd === 'set' && parts[1] === 'prestige' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.prestige = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Prestige de ${targetName} defini a ${amount}` };
+  }
+  
+  // set units <name> <unitId> <amount>
+  if (cmd === 'set' && parts[1] === 'units' && parts[2] && parts[3] && parts[4]) {
+    const targetName = parts[2];
+    const unitId = parts[3].toLowerCase();
+    const amount = Number(parts[4]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    if (!account.profile.units.hasOwnProperty(unitId)) throw new Error('Unite invalide.');
+    account.profile.units[unitId] = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${unitId} de ${targetName} defini a ${amount}` };
+  }
+  
+  // give xp <name> <amount>
+  if (cmd === 'give' && parts[1] === 'xp' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.xp += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount} XP donne a ${targetName}` };
+  }
+  
+  // reset all
+  if (cmd === 'reset' && parts[1] === 'all') {
+    store.accounts = {};
+    store.sessions = {};
+    store.clans = {};
+    store.marketListings = [];
+    ensureSeedAccount();
+    await saveStore();
+    return { ok: true, message: 'Tous les comptes reinitialises' };
+  }
+  
+  // reset <name>
+  if (cmd === 'reset' && parts[1]) {
+    const targetName = parts[1];
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    if (accountKey(account.name) === accountKey(SEED_ACCOUNT_NAME)) throw new Error('Impossible de reinitialiser le compte admin.');
+    account.profile = defaultProfile(account.name);
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Compte ${targetName} reinitialise` };
+  }
+  
+  // delete <name>
+  if (cmd === 'delete' && parts[1]) {
+    const targetName = parts[1];
+    const key = accountKey(targetName);
+    if (key === accountKey(SEED_ACCOUNT_NAME)) throw new Error('Impossible de supprimer le compte admin.');
+    if (!store.accounts[key]) throw new Error('Compte introuvable.');
+    delete store.accounts[key];
+    Object.keys(store.sessions).forEach(token => {
+      if (store.sessions[token].name === targetName) delete store.sessions[token];
+    });
+    await saveStore();
+    return { ok: true, message: `Compte ${targetName} supprime` };
+  }
+  
+  // list accounts
+  if (cmd === 'list' && parts[1] === 'accounts') {
+    const accounts = Object.values(store.accounts).map(account => ({
+      name: account.name,
+      money: Math.round(account.profile.money),
+      gems: account.profile.gems,
+      level: account.profile.commanderLevel,
+      power: computePower(account.profile),
+      population: account.profile.population,
+    })).sort((a, b) => b.power - a.power);
+    return { ok: true, accounts };
+  }
+  
+  // get <name>
+  if (cmd === 'get' && parts[1]) {
+    const targetName = parts[1];
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    const profile = normalizeProfile(account.profile, account.name);
+    return { ok: true, profile };
+  }
+  
+  // wipe all
+  if (cmd === 'wipe' && parts[1] === 'all') {
+    store.accounts = {};
+    store.sessions = {};
+    store.clans = {};
+    store.marketListings = [];
+    ensureSeedAccount();
+    await saveStore();
+    return { ok: true, message: 'Tous les donnees supprimees, compte admin recree' };
+  }
+  
+  throw new Error('Commande inconnue. Commandes: give money/gems/units, set money/gems/xp/level, reset, delete, list accounts, get, wipe all');
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -677,6 +909,19 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
       return sendJson(res, 200, { entries: leaderboardEntries() });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/admin/command') {
+      const auth = requireAuth(req);
+      if (!auth) return sendJson(res, 401, { error: 'Non authentifie.' });
+      const body = await readBody(req);
+      const command = String(body && body.command ? body.command : '').trim();
+      try {
+        const result = await executeAdminCommand(command, auth);
+        return sendJson(res, 200, result);
+      } catch (error) {
+        return sendJson(res, 400, { error: error.message || 'Erreur de commande.' });
+      }
     }
 
     if (req.method === 'POST' && url.pathname === '/api/logout') {
