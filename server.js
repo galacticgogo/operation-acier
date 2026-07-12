@@ -722,10 +722,167 @@ async function executeAdminCommand(command, auth) {
       }
     };
   }
-  
+  // sondage <question>|<choix1>|<choix2>|<choix3>
+if (cmd === 'sondage') {
+
+  const text = parts.slice(1).join(' ');
+
+  const data = text.split('|');
+
+  if(data.length < 3)
+    throw new Error(
+      'Utilisation: sondage Question|Choix1|Choix2|Choix3'
+    );
+
+
+  const question = data[0];
+
+  const choices = data.slice(1);
+
+
+  store.poll = {
+    id: crypto.randomBytes(8).toString('hex'),
+    question,
+    choices,
+    votes:{},
+    active:true,
+    ended:false,
+    createdAt:Date.now()
+  };
+
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:'poll',
+    sender:'ADMIN',
+    text:`📊 Sondage : ${question}`,
+    poll:store.poll,
+    createdAt:Date.now()
+  });
+
+
+  await saveStore();
+
+
+  return {
+    ok:true,
+    message:"Sondage créé"
+  };
+}
+// sondage result
+if(cmd === 'sondage' && parts[1] === 'result'){
+
+  if(!store.poll)
+    throw new Error('Aucun sondage.');
+
+  const results={};
+
+
+  store.poll.choices.forEach(choice=>{
+    results[choice]=0;
+  });
+
+
+  Object.values(store.poll.votes)
+  .forEach(vote=>{
+
+    const choice = store.poll.choices[vote-1];
+
+    if(choice)
+      results[choice]++;
+
+  });
+
+
+  return {
+    ok:true,
+    question:store.poll.question,
+    results
+  };
+
+}
   throw new Error('Commande inconnue. Voir le panneau admin pour la liste des commandes.');
 }
+async function checkPollAlert(){
 
+    try{
+
+        const res = await apiRequest("/api/poll");
+
+        if(!res.poll || !res.poll.active)
+            return;
+
+
+        // éviter de remettre l'alerte en boucle
+        const pollId = res.poll.id;
+
+        if(localStorage.getItem("poll_seen_"+pollId))
+            return;
+
+
+        let text = "📊 Sondage\n\n";
+        text += res.poll.question+"\n\n";
+
+
+        res.poll.choices.forEach((choice,index)=>{
+
+            text += `${index+1} - ${choice}\n`;
+
+        });
+
+
+        const answer = prompt(text);
+
+
+        if(answer === null)
+            return;
+
+
+        const choice = Number(answer);
+
+
+        if(
+            !choice ||
+            choice < 1 ||
+            choice > res.poll.choices.length
+        ){
+
+            alert("Choix invalide");
+
+            return;
+
+        }
+
+
+        await apiRequest("/api/poll/vote",{
+
+            method:"POST",
+
+            body:{
+                choice
+            }
+
+        });
+
+
+        localStorage.setItem(
+            "poll_seen_"+pollId,
+            "true"
+        );
+
+
+        alert("✅ Vote enregistré");
+
+
+    }catch(e){
+
+        console.log("Erreur sondage:",e);
+
+    }
+
+}
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -1095,7 +1252,48 @@ const server = http.createServer(async (req, res) => {
       }
       return sendJson(res, 200, { ok: true });
     }
+// Voir le sondage actif
+if (req.method === 'GET' && url.pathname === '/api/poll') {
 
+  const poll = store.poll || null;
+
+  return sendJson(res, 200, {
+    poll
+  });
+
+} 
+// sondage result
+if(cmd === 'sondage' && parts[1] === 'result'){
+
+  if(!store.poll)
+    throw new Error('Aucun sondage.');
+
+  const results={};
+
+
+  store.poll.choices.forEach(choice=>{
+    results[choice]=0;
+  });
+
+
+  Object.values(store.poll.votes)
+  .forEach(vote=>{
+
+    const choice = store.poll.choices[vote-1];
+
+    if(choice)
+      results[choice]++;
+
+  });
+
+
+  return {
+    ok:true,
+    question:store.poll.question,
+    results
+  };
+
+}
     return sendJson(res, 404, { error: 'Route inconnue.' });
   } catch (error) {
     return sendJson(res, 400, { error: error.message || 'Erreur inconnue.' });
