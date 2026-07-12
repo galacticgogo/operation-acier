@@ -973,76 +973,513 @@ document.querySelectorAll('.navbtn').forEach(btn=>{
 });
 
 /* ============================ ADMIN ============================ */
-function renderAdmin(){
-  const el = document.getElementById('adminBody');
-  let html = `
-    <div class="section-title display">Panneau Admin</div>
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:16px;">
-      <h3 style="margin:0 0 12px;color:var(--amber);">Exécuter une commande</h3>
-      <textarea id="adminCommand" placeholder="Ex: give money PlayerName 1000" style="width:100%;padding:8px;background:var(--panel2);border:1px solid var(--line);color:var(--paper);font-family:'JetBrains Mono',monospace;font-size:13px;border-radius:3px;margin-bottom:8px;" rows="2"></textarea>
-      <button class="btn" id="adminExecBtn" style="width:100%;margin:0;">Exécuter</button>
-      <div id="adminResult" style="margin-top:8px;padding:8px;background:var(--panel2);border:1px solid var(--line);border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;min-height:40px;display:none;"></div>
-    </div>
-    
-    <div class="section-title display">Commandes disponibles</div>
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px;">
-      <p style="margin:0 0 8px;color:var(--khaki);"><b>Donner</b></p>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give money &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give gems &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">give xp &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:16px;overflow-x:auto;">give units &lt;name&gt; &lt;unitId&gt; &lt;amount&gt;</code>
-      
-      <p style="margin:0 0 8px;color:var(--khaki);"><b>Définir</b></p>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set money &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set gems &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set xp &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set level &lt;name&gt; &lt;level&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set population &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">set prestige &lt;name&gt; &lt;amount&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:16px;overflow-x:auto;">set units &lt;name&gt; &lt;unitId&gt; &lt;amount&gt;</code>
-      
-      <p style="margin:0 0 8px;color:var(--khaki);"><b>Gestion</b></p>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">get &lt;name&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">reset &lt;name&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">delete &lt;name&gt;</code>
-      <code style="display:block;background:var(--panel2);padding:6px;border-radius:3px;margin-bottom:8px;overflow-x:auto;">list accounts</code>
-    </div>
-  `;
-  el.innerHTML = html;
-  
-  document.getElementById('adminExecBtn').onclick = async ()=>{
-    const cmd = document.getElementById('adminCommand').value.trim();
-    if(!cmd) return;
-    const resultEl = document.getElementById('adminResult');
-    try{
-      const res = await apiRequest('/api/admin/command', {
-        method: 'POST',
-        body: { command: cmd }
-      });
-      resultEl.style.display = 'block';
-      resultEl.style.color = 'var(--green)';
-      if(res.ok){
-        resultEl.textContent = '✓ Succès: ' + (res.message || JSON.stringify(res));
-      } else if(res.accounts){
-        resultEl.textContent = '✓ ' + JSON.stringify(res.accounts, null, 2);
-      } else if(res.profile){
-        resultEl.textContent = '✓ ' + JSON.stringify(res.profile, null, 2);
-      } else {
-        resultEl.textContent = '✓ ' + JSON.stringify(res, null, 2);
-      }
-      document.getElementById('adminCommand').value = '';
-    }catch(e){
-      resultEl.style.display = 'block';
-      resultEl.style.color = 'var(--red)';
-      resultEl.textContent = '✗ Erreur: ' + (e.message || e);
-    }
-  };
-  
-  document.getElementById('adminCommand').addEventListener('keydown', e=>{
-    if(e.key==='Enter' && e.ctrlKey) document.getElementById('adminExecBtn').click();
-  });
-}
+function renderAdmin() {
+    const el = document.getElementById("adminBody");
 
+    el.innerHTML = `
+        <div class="section-title display">🛠 Panneau Administrateur</div>
+
+        <div class="admin-section">
+            <h4>👤 Joueurs</h4>
+
+            <div class="admin-grid">
+                <button class="admin-btn" id="giveMoney">💰 Argent</button>
+                <button class="admin-btn" id="giveGems">💎 Gemmes</button>
+                <button class="admin-btn" id="giveXP">⭐ XP</button>
+                <button class="admin-btn" id="giveUnits">🪖 Unités</button>
+
+                <button class="admin-btn" id="setMoney">Définir Argent</button>
+                <button class="admin-btn" id="setGems">Définir Gemmes</button>
+                <button class="admin-btn" id="setXP">Définir XP</button>
+                <button class="admin-btn" id="setLevel">Définir Niveau</button>
+
+                <button class="admin-btn" id="resetPlayer">Reset Joueur</button>
+                <button class="admin-btn" id="deletePlayer">Supprimer Joueur</button>
+
+                <button class="admin-btn" id="playerInfo">Infos Joueur</button>
+                <button class="admin-btn" id="listAccounts">Liste Comptes</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h4>📦 Stocks</h4>
+
+            <div class="admin-grid">
+
+                <button class="admin-btn" id="stockFill">
+                    📦 Remplir
+                </button>
+
+                <button class="admin-btn" id="stockEmpty">
+                    📭 Vider
+                </button>
+
+                <button class="admin-btn" id="stockReset">
+                    ♻ Reset
+                </button>
+
+                <button class="admin-btn" id="stockAdd">
+                    ➕ Ajouter
+                </button>
+
+                <button class="admin-btn" id="stockRemove">
+                    ➖ Retirer
+                </button>
+
+                <button class="admin-btn" id="stockInfo">
+                    📊 Voir stocks
+                </button>
+
+            </div>
+        </div>
+
+        <div class="admin-section">
+
+            <h4>⭐ Bonus</h4>
+
+            <div class="admin-grid">
+
+                <button class="admin-btn" id="bonusMoney">
+                    💰 Bonus Argent
+                </button>
+
+                <button class="admin-btn" id="bonusXP">
+                    ⭐ Bonus XP
+                </button>
+
+                <button class="admin-btn" id="bonusProduction">
+                    🏭 Bonus Production
+                </button>
+
+                <button class="admin-btn" id="bonusRemove">
+                    ❌ Retirer Bonus
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="admin-section">
+
+            <h4>🌍 Événements</h4>
+
+            <div class="admin-grid">
+
+                <button class="admin-btn" id="eventMoney">
+                    💵 Double Argent
+                </button>
+
+                <button class="admin-btn" id="eventXP">
+                    ⭐ Double XP
+                </button>
+
+                <button class="admin-btn" id="eventProduction">
+                    🏭 Production x2
+                </button>
+
+                <button class="admin-btn" id="eventStop">
+                    ⛔ Stop Event
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="admin-section">
+
+            <h4>📢 Messages</h4>
+
+            <div class="admin-grid">
+
+                <button class="admin-btn" id="broadcast">
+                    📣 Annonce
+                </button>
+
+                <button class="admin-btn" id="motd">
+                    📜 Message accueil
+                </button>
+
+                <button class="admin-btn" id="clearMessages">
+                    🗑 Vider messages
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="admin-section">
+
+            <h4>⚙ Serveur</h4>
+
+            <div class="admin-grid">
+
+                <button class="admin-btn danger" id="wipe">
+                    🔥 WIPE
+                </button>
+
+                <button class="admin-btn" id="resetAll">
+                    ♻ Reset comptes
+                </button>
+
+            </div>
+
+        </div>
+
+        <div id="adminResult"
+             style="
+             margin-top:20px;
+             background:var(--panel);
+             padding:12px;
+             border:1px solid var(--line);
+             border-radius:4px;
+             white-space:pre-wrap;
+             ">
+        </div>
+    `;
+    async function runCommand(command){
+
+        try{
+
+            const res = await apiRequest("/api/admin/command",{
+                method:"POST",
+                body:{
+                    command
+                }
+            });
+
+            document.getElementById("adminResult").textContent =
+                res.message ||
+                JSON.stringify(res,null,2);
+
+        }catch(err){
+
+            document.getElementById("adminResult").textContent =
+                err.message;
+
+        }
+
+    }
+
+    document.getElementById("giveMoney").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const amount=prompt("Montant");
+        if(!amount)return;
+
+        runCommand(`give money ${player} ${amount}`);
+
+    };
+
+    document.getElementById("giveGems").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const amount=prompt("Gemmes");
+        if(!amount)return;
+
+        runCommand(`give gems ${player} ${amount}`);
+
+    };
+
+    document.getElementById("giveXP").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const amount=prompt("XP");
+        if(!amount)return;
+
+        runCommand(`give xp ${player} ${amount}`);
+
+    };
+
+    document.getElementById("giveUnits").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const unit=prompt("Unité\ninfantry\narmor\nheavy\njet\ncarrier\ndrone\nartillery\nhelicopter\nsubmarine\nmissile");
+        if(!unit)return;
+
+        const amount=prompt("Quantité");
+        if(!amount)return;
+
+        runCommand(`give units ${player} ${unit} ${amount}`);
+
+    };
+
+    document.getElementById("setMoney").onclick=()=>{
+
+        const p=prompt("Pseudo");
+        const a=prompt("Argent");
+
+        if(!p||!a)return;
+
+        runCommand(`set money ${p} ${a}`);
+
+    };
+
+    document.getElementById("setGems").onclick=()=>{
+
+        const p=prompt("Pseudo");
+        const a=prompt("Gemmes");
+
+        if(!p||!a)return;
+
+        runCommand(`set gems ${p} ${a}`);
+
+    };
+
+    document.getElementById("setXP").onclick=()=>{
+
+        const p=prompt("Pseudo");
+        const a=prompt("XP");
+
+        if(!p||!a)return;
+
+        runCommand(`set xp ${p} ${a}`);
+
+    };
+
+    document.getElementById("setLevel").onclick=()=>{
+
+        const p=prompt("Pseudo");
+        const a=prompt("Niveau");
+
+        if(!p||!a)return;
+
+        runCommand(`set level ${p} ${a}`);
+
+    };
+
+    document.getElementById("resetPlayer").onclick=()=>{
+
+        const p=prompt("Pseudo");
+
+        if(!p)return;
+
+        if(confirm("Réinitialiser "+p+" ?"))
+            runCommand(`reset ${p}`);
+
+    };
+
+    document.getElementById("deletePlayer").onclick=()=>{
+
+        const p=prompt("Pseudo");
+
+        if(!p)return;
+
+        if(confirm("Supprimer définitivement "+p+" ?"))
+            runCommand(`delete ${p}`);
+
+    };
+
+    document.getElementById("playerInfo").onclick=()=>{
+
+        const p=prompt("Pseudo");
+
+        if(!p)return;
+
+        runCommand(`get ${p}`);
+
+    };
+
+    document.getElementById("listAccounts").onclick=()=>{
+
+        runCommand("list accounts");
+
+    };    /* ---------- STOCKS ---------- */
+
+    document.getElementById("stockFill").onclick=()=>{
+        runCommand("stock fill");
+    };
+
+    document.getElementById("stockEmpty").onclick=()=>{
+        runCommand("stock empty");
+    };
+
+    document.getElementById("stockReset").onclick=()=>{
+        runCommand("stock reset");
+    };
+
+    document.getElementById("stockAdd").onclick=()=>{
+
+        const resource=prompt("Ressource");
+        if(!resource)return;
+
+        const amount=prompt("Quantité");
+        if(!amount)return;
+
+        runCommand(`stock add ${resource} ${amount}`);
+
+    };
+
+    document.getElementById("stockRemove").onclick=()=>{
+
+        const resource=prompt("Ressource");
+        if(!resource)return;
+
+        const amount=prompt("Quantité");
+        if(!amount)return;
+
+        runCommand(`stock remove ${resource} ${amount}`);
+
+    };
+
+    document.getElementById("stockInfo").onclick=()=>{
+
+        runCommand("stock get");
+
+    };
+
+
+
+    /* ---------- BONUS ---------- */
+
+    document.getElementById("bonusMoney").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const mult=prompt("Multiplicateur");
+        if(!mult)return;
+
+        const duration=prompt("Durée (secondes)");
+        if(!duration)return;
+
+        runCommand(`bonus money ${player} ${mult} ${duration}`);
+
+    };
+
+    document.getElementById("bonusXP").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const mult=prompt("Multiplicateur");
+        if(!mult)return;
+
+        const duration=prompt("Durée (secondes)");
+        if(!duration)return;
+
+        runCommand(`bonus xp ${player} ${mult} ${duration}`);
+
+    };
+
+    document.getElementById("bonusProduction").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        const mult=prompt("Multiplicateur");
+        if(!mult)return;
+
+        const duration=prompt("Durée (secondes)");
+        if(!duration)return;
+
+        runCommand(`bonus production ${player} ${mult} ${duration}`);
+
+    };
+
+    document.getElementById("bonusRemove").onclick=()=>{
+
+        const player=prompt("Pseudo");
+        if(!player)return;
+
+        runCommand(`bonus remove ${player}`);
+
+    };
+
+
+
+    /* ---------- EVENEMENTS ---------- */
+
+    document.getElementById("eventMoney").onclick=()=>{
+
+        runCommand("event start doublemoney");
+
+    };
+
+    document.getElementById("eventXP").onclick=()=>{
+
+        runCommand("event start doublexp");
+
+    };
+
+    document.getElementById("eventProduction").onclick=()=>{
+
+        runCommand("event start production");
+
+    };
+
+    document.getElementById("eventStop").onclick=()=>{
+
+        runCommand("event stop");
+
+    };
+
+
+
+    /* ---------- MESSAGES ---------- */
+
+    document.getElementById("broadcast").onclick=()=>{
+
+        const msg=prompt("Message à envoyer");
+
+        if(!msg)return;
+
+        runCommand(`broadcast ${msg}`);
+
+    };
+
+    document.getElementById("motd").onclick=()=>{
+
+        const msg=prompt("Message d'accueil");
+
+        if(!msg)return;
+
+        runCommand(`motd ${msg}`);
+
+    };
+
+    document.getElementById("clearMessages").onclick=()=>{
+
+        if(confirm("Supprimer tous les messages ?")){
+
+            runCommand("clear messages");
+
+        }
+
+    };
+
+
+
+    /* ---------- SERVEUR ---------- */
+
+    document.getElementById("resetAll").onclick=()=>{
+
+        if(confirm("Réinitialiser TOUS les comptes ?")){
+
+            runCommand("reset all");
+
+        }
+
+    };
+
+    document.getElementById("wipe").onclick=()=>{
+
+        if(confirm("⚠ Cette action supprimera TOUTES les données.\nContinuer ?")){
+
+            runCommand("wipe all");
+
+        }
+
+    };
+
+}
 /* ============================ SHOP ============================ */
 function renderShop(){
   const el = document.getElementById('shopBody');
