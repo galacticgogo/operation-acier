@@ -22,7 +22,7 @@ const SEED_ACCOUNT_PASSWORD = 'Gogo2026!';
 const TEST_ACCOUNT_PREFIXES = ['test', 'testuser', 'testuserregistration'];
 
 function createEmptyStore() {
-  return { accounts: {}, clans: {}, sessions: {}, marketListings: [] };
+  return { accounts: {}, clans: {}, sessions: {}, marketListings: [], messages: [], events: [] };
 }
 
 function normalizeStore(source) {
@@ -32,6 +32,8 @@ function normalizeStore(source) {
     clans: parsed.clans || {},
     sessions: parsed.sessions || {},
     marketListings: Array.isArray(parsed.marketListings) ? parsed.marketListings : [],
+    messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+    events: Array.isArray(parsed.events) ? parsed.events : [],
   };
 }
 
@@ -565,7 +567,163 @@ async function executeAdminCommand(command, auth) {
     return { ok: true, message: 'Tous les donnees supprimees, compte admin recree' };
   }
   
-  throw new Error('Commande inconnue. Commandes: give money/gems/units, set money/gems/xp/level, reset, delete, list accounts, get, wipe all');
+  // broadcast <message>
+  if (cmd === 'broadcast' && parts[1]) {
+    const message = parts.slice(1).join(' ');
+    store.messages = store.messages || [];
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'broadcast',
+      sender: 'ADMIN',
+      text: message,
+      createdAt: Date.now(),
+    });
+    store.messages = store.messages.slice(-100);
+    await saveStore();
+    return { ok: true, message: `Broadcast envoye: ${message}` };
+  }
+  
+  // event drop <amount>
+  if (cmd === 'event' && parts[1] === 'drop' && parts[2]) {
+    const amount = Number(parts[2]);
+    if (isNaN(amount) || amount <= 0) throw new Error('Montant invalide.');
+    store.events = store.events || [];
+    store.events.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'moneydrop',
+      amount: amount,
+      createdAt: Date.now(),
+    });
+    store.messages = store.messages || [];
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'event',
+      sender: 'SYSTÈME',
+      text: `💰 Pluie d'argent! ${amount} trouvés par tous les joueurs connectés!`,
+      createdAt: Date.now(),
+    });
+    await saveStore();
+    return { ok: true, message: `Événement: ${amount} argent drop pour tous` };
+  }
+  
+  // event gems <amount>
+  if (cmd === 'event' && parts[1] === 'gems' && parts[2]) {
+    const amount = Number(parts[2]);
+    if (isNaN(amount) || amount <= 0) throw new Error('Montant invalide.');
+    store.events = store.events || [];
+    store.events.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'gemsdrop',
+      amount: amount,
+      createdAt: Date.now(),
+    });
+    store.messages = store.messages || [];
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'event',
+      sender: 'SYSTÈME',
+      text: `💎 Festival de gemmes! ${amount} gemmes pour tous!`,
+      createdAt: Date.now(),
+    });
+    await saveStore();
+    return { ok: true, message: `Événement: ${amount} gemmes drop pour tous` };
+  }
+  
+  // event xp <amount>
+  if (cmd === 'event' && parts[1] === 'xp' && parts[2]) {
+    const amount = Number(parts[2]);
+    if (isNaN(amount) || amount <= 0) throw new Error('Montant invalide.');
+    store.events = store.events || [];
+    store.events.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'xpdrop',
+      amount: amount,
+      createdAt: Date.now(),
+    });
+    store.messages = store.messages || [];
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'event',
+      sender: 'SYSTÈME',
+      text: `⚡ Surge d'expérience! ${amount} XP pour tous les commandants!`,
+      createdAt: Date.now(),
+    });
+    await saveStore();
+    return { ok: true, message: `Événement: ${amount} XP drop pour tous` };
+  }
+  
+  // messages list
+  if (cmd === 'messages' && parts[1] === 'list') {
+    const messages = (store.messages || []).slice(-20);
+    return { ok: true, messages };
+  }
+  
+  // messages clear
+  if (cmd === 'messages' && parts[1] === 'clear') {
+    store.messages = [];
+    await saveStore();
+    return { ok: true, message: 'Messages effaces' };
+  }
+  
+  // give factory <name> <factoryId> <amount>
+  if (cmd === 'give' && parts[1] === 'factory' && parts[2] && parts[3] && parts[4]) {
+    const targetName = parts[2];
+    const factoryId = parts[3].toLowerCase();
+    const amount = Number(parts[4]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    if (!account.profile.factories.hasOwnProperty(factoryId)) throw new Error('Usine invalide.');
+    account.profile.factories[factoryId] += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount}x usine ${factoryId} donnee a ${targetName}` };
+  }
+  
+  // set bank <name> <amount>
+  if (cmd === 'set' && parts[1] === 'bank' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.bank.deposited = amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Banque de ${targetName} definie a ${amount}` };
+  }
+  
+  // online count
+  if (cmd === 'online') {
+    const count = Object.keys(store.sessions).length;
+    return { ok: true, online: count, message: `${count} joueurs connectes` };
+  }
+  
+  // info <name>
+  if (cmd === 'info' && parts[1]) {
+    const targetName = parts[1];
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    const profile = normalizeProfile(account.profile, account.name);
+    return { 
+      ok: true, 
+      info: {
+        name: account.name,
+        createdAt: new Date(account.createdAt).toISOString(),
+        updatedAt: new Date(account.updatedAt).toISOString(),
+        money: Math.round(profile.money),
+        gems: profile.gems,
+        xp: profile.xp,
+        level: profile.commanderLevel,
+        prestige: profile.prestige,
+        population: profile.population,
+        power: computePower(profile),
+        clan: profile.clan || 'aucun',
+      }
+    };
+  }
+  
+  throw new Error('Commande inconnue. Voir le panneau admin pour la liste des commandes.');
 }
 
 function readBody(req) {
@@ -922,6 +1080,11 @@ const server = http.createServer(async (req, res) => {
       } catch (error) {
         return sendJson(res, 400, { error: error.message || 'Erreur de commande.' });
       }
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/messages') {
+      const messages = (store.messages || []).slice(-50);
+      return sendJson(res, 200, { messages });
     }
 
     if (req.method === 'POST' && url.pathname === '/api/logout') {

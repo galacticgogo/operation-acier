@@ -1,0 +1,152 @@
+{
+  "accounts": {
+    "galacticgogo9": {
+      "name": "GalacticGogo9",
+      "salt": "edecffc2a167b3f610c3dc93edae861d",
+      "passwordHash": "634f392087e5c2c0243537341562de7f698c68d3e73b2e1bc7c98f00c807af6d",
+      "profile": {
+        "name": "GalacticGogo9",
+        "clan": null,
+        "money": 2000,
+        "gems": 25,
+        "population": 100,
+        "hideFromLeaderboard": true,
+        "xp": 0,
+        "commanderLevel": 1,
+        "prestige": 0,
+        "prestigePoints": 0,
+        "techPoints": 0,
+        "tech": {},
+        "achievements": {},
+        "unitUpgrades": {
+          "infantry": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "armor": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "heavy": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "jet": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "carrier": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "drone": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "artillery": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "helicopter": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "submarine": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          },
+          "missile": {
+            "armor": 0,
+            "precision": 0,
+            "speed": 0
+          }
+        },
+        "general": null,
+        "bank": {
+          "deposited": 0,
+          "lastTick": 1783082515263
+        },
+        "battleDifficulty": "normal",
+        "battleWins": 0,
+        "battleLosses": 0,
+        "units": {
+          "infantry": 0,
+          "armor": 0,
+          "heavy": 0,
+          "jet": 0,
+          "carrier": 0,
+          "drone": 0,
+          "artillery": 0,
+          "helicopter": 0,
+          "submarine": 0,
+          "missile": 0
+        },
+        "factories": {
+          "f1": 0,
+          "f2": 0,
+          "f3": 0
+        },
+        "bonusPower": 0,
+        "levelsCompleted": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "questsClaimed": {},
+        "lastTick": 1783084886162
+      },
+      "createdAt": 1783082515263,
+      "updatedAt": 1783084886398
+    }
+  },
+  "clans": {},
+  "sessions": {
+    "e8e349a4db02891ee6ceb049c12884bd2d57c9534db520377fbf008ac557b141": {
+      "name": "GalacticGogo9",
+      "createdAt": 1783082691351
+    },
+    "a74307b28faa8024d800d2012388d5b2ff43f397e90dc787e687108fefa0f2ad": {
+      "name": "TestUser",
+      "createdAt": 1783082691788
+    },
+    "31a0c8ce59398349fc766099dc4f1b00c4f8d3446ec6df3f91ba2277f79919c8": {
+      "name": "GalacticGogo9",
+      "createdAt": 1783082735614
+    },
+    "5794f441df323523663a2db9856fd08817357658425f760014c17ce293e072df": {
+      "name": "GalacticGogo9",
+      "createdAt": 1783082771529
+    },
+    "445736afa3af70ac6381d9da68c582645c0003221f22ef29b9a8520fc327dcaf": {
+      "name": "TestUser",
+      "createdAt": 1783082771570
+    }
+  },
+  "marketListings": []
+}
