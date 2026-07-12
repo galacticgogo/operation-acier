@@ -1109,6 +1109,28 @@ function renderAdmin() {
 
         <div class="admin-section">
 
+    <h4>📊 Sondages</h4>
+
+    <div class="admin-grid">
+
+        <button class="admin-btn" id="createPoll">
+            📊 Créer un sondage
+        </button>
+
+        <button class="admin-btn" id="pollResult">
+            📈 Résultats
+        </button>
+
+        <button class="admin-btn danger" id="stopPoll">
+            ⛔ Arrêter sondage
+        </button>
+
+    </div>
+
+</div>
+
+        <div class="admin-section">
+
             <h4>⚙ Serveur</h4>
 
             <div class="admin-grid">
@@ -1171,7 +1193,58 @@ function renderAdmin() {
         runCommand(`give money ${player} ${amount}`);
 
     };
+/* ---------- SONDAGES ---------- */
 
+document.getElementById("createPoll").onclick = ()=>{
+
+    const question = prompt("Question du sondage");
+
+    if(!question)
+        return;
+
+
+    const choices = prompt(
+        "Choix séparés par des virgules\nExemple :\nChars,Avions,Missiles"
+    );
+
+
+    if(!choices)
+        return;
+
+
+    const command =
+        "sondage " +
+        question +
+        "|" +
+        choices
+        .split(",")
+        .map(x=>x.trim())
+        .join("|");
+
+
+    runCommand(command);
+
+};
+
+
+
+document.getElementById("pollResult").onclick = ()=>{
+
+    runCommand("sondage result");
+
+};
+
+
+
+document.getElementById("stopPoll").onclick = ()=>{
+
+    if(confirm("Arrêter le sondage actuel ?")){
+
+        runCommand("sondage stop");
+
+    }
+
+};
     document.getElementById("giveGems").onclick=()=>{
 
         const player=prompt("Pseudo");
@@ -2049,6 +2122,7 @@ refreshHUD();
 pushToLeaderboard();
 saveProfile();
 checkPollAlert();
+checkMOTD();
 }
 
 async function restoreSession(){
@@ -2072,7 +2146,28 @@ return true;
     return false;
   }
 }
+async function checkMOTD(){
 
+  try{
+
+    const res = await apiRequest('/api/motd');
+
+    if(res.motd){
+
+      alert(
+        "📜 Message du commandant\n\n" +
+        res.motd
+      );
+
+    }
+
+  }catch(e){
+
+    console.log("MOTD:", e);
+
+  }
+
+}
 async function logout(){
   try{
     if(authToken) await apiRequest('/api/logout', { method: 'POST' });
