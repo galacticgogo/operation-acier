@@ -742,7 +742,7 @@ if(cmd === 'sondage' && parts[1] === 'stop'){
   };
 
 }
-  if (cmd === 'sondage') 
+ if (cmd === 'sondage') {
 
   const text = parts.slice(1).join(' ');
 
@@ -1774,4 +1774,4 @@ process.on('SIGINT', () => {
   server.close(() => {
     process.exit(0);
   });
-});
+});}
