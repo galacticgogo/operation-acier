@@ -1953,7 +1953,11 @@ async function renderClan(){
     });
   }
 }
+if(message.type === "poll_result"){
 
+  alert(message.text);
+
+}
 async function updateClanProgress(delta){
   if(!profile.clan) return;
   const clans = await getClans();
@@ -2182,7 +2186,95 @@ async function logout(){
   document.getElementById('passwordInput').value = '';
   setLoginStatus('Déconnecté.', 'var(--paper-dim)');
 }
+async function checkPollAlert(){
 
+  try{
+
+    const res = await apiRequest("/api/poll");
+
+    if(!res.poll || !res.poll.active)
+      return;
+
+
+    const pollId = res.poll.id;
+
+
+    // éviter de refaire apparaître le même sondage
+    if(localStorage.getItem("poll_seen_" + pollId))
+      return;
+
+
+    let text = "📊 Sondage\n\n";
+    text += res.poll.question + "\n\n";
+
+
+    res.poll.choices.forEach((choice,index)=>{
+      text += `${index + 1} - ${choice}\n`;
+    });
+
+
+    const answer = prompt(text);
+
+
+    // si le joueur ferme la fenêtre
+    if(answer === null){
+
+      localStorage.setItem(
+        "poll_seen_" + pollId,
+        "true"
+      );
+
+      return;
+    }
+
+
+    const choice = Number(answer);
+
+
+    if(
+      !choice ||
+      choice < 1 ||
+      choice > res.poll.choices.length
+    ){
+
+      alert("Choix invalide.");
+      return;
+
+    }
+
+
+    await apiRequest("/api/poll/vote",{
+
+      method:"POST",
+
+      body:{
+        choice: choice
+      }
+
+    });
+
+
+    localStorage.setItem(
+      "poll_seen_" + pollId,
+      "true"
+    );
+
+
+    alert("✅ Vote enregistré");
+
+
+  }catch(e){
+
+    console.log("Erreur sondage :", e);
+
+  }
+
+}
+setInterval(()=>{
+  if(profile){
+    checkPollAlert();
+  }
+},5000);
 restoreSession();
 </script>
 </body>
