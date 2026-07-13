@@ -1109,28 +1109,6 @@ function renderAdmin() {
 
         <div class="admin-section">
 
-    <h4>📊 Sondages</h4>
-
-    <div class="admin-grid">
-
-        <button class="admin-btn" id="createPoll">
-            📊 Créer un sondage
-        </button>
-
-        <button class="admin-btn" id="pollResult">
-            📈 Résultats
-        </button>
-
-        <button class="admin-btn danger" id="stopPoll">
-            ⛔ Arrêter sondage
-        </button>
-
-    </div>
-
-</div>
-
-        <div class="admin-section">
-
             <h4>⚙ Serveur</h4>
 
             <div class="admin-grid">
@@ -1193,58 +1171,7 @@ function renderAdmin() {
         runCommand(`give money ${player} ${amount}`);
 
     };
-/* ---------- SONDAGES ---------- */
 
-document.getElementById("createPoll").onclick = ()=>{
-
-    const question = prompt("Question du sondage");
-
-    if(!question)
-        return;
-
-
-    const choices = prompt(
-        "Choix séparés par des virgules\nExemple :\nChars,Avions,Missiles"
-    );
-
-
-    if(!choices)
-        return;
-
-
-    const command =
-        "sondage " +
-        question +
-        "|" +
-        choices
-        .split(",")
-        .map(x=>x.trim())
-        .join("|");
-
-
-    runCommand(command);
-
-};
-
-
-
-document.getElementById("pollResult").onclick = ()=>{
-
-    runCommand("sondage result");
-
-};
-
-
-
-document.getElementById("stopPoll").onclick = ()=>{
-
-    if(confirm("Arrêter le sondage actuel ?")){
-
-        runCommand("sondage stop");
-
-    }
-
-};
     document.getElementById("giveGems").onclick=()=>{
 
         const player=prompt("Pseudo");
@@ -1953,11 +1880,7 @@ async function renderClan(){
     });
   }
 }
-if(message.type === "poll_result"){
 
-  alert(message.text);
-
-}
 async function updateClanProgress(delta){
   if(!profile.clan) return;
   const clans = await getClans();
@@ -2018,72 +1941,7 @@ setInterval(()=>{
   refreshHUD();
   saveProfile();
 }, 4000);
-async function checkPollAlert(){
 
-  try{
-
-    const res = await apiRequest('/api/poll');
-
-    if(!res.poll || !res.poll.active)
-      return;
-
-
-    // déjà voté ?
-    if(res.poll.votes && res.poll.votes[profile.name])
-      return;
-
-
-    let text = "📊 SONDAGE\n\n";
-    text += res.poll.question + "\n\n";
-
-
-    res.poll.choices.forEach((choice,index)=>{
-
-      text += `${index + 1} - ${choice}\n`;
-
-    });
-
-
-    const answer = prompt(text);
-
-
-    if(answer === null)
-      return;
-
-
-    const choice = Number(answer);
-
-
-    if(
-      choice < 1 ||
-      choice > res.poll.choices.length
-    ){
-
-      alert("Choix invalide.");
-
-      return;
-
-    }
-
-
-    const vote = await apiRequest('/api/poll/vote',{
-      method:'POST',
-      body:{
-        choice
-      }
-    });
-
-
-    alert(vote.message || "Vote enregistré");
-
-
-  }catch(e){
-
-    console.log("Sondage:", e);
-
-  }
-
-}
 /* ============================ LOGIN / INIT ============================ */
 document.getElementById('loginBtn').onclick = ()=> doLogin('login');
 document.getElementById('registerBtn').onclick = ()=> doLogin('register');
@@ -2122,11 +1980,9 @@ async function doLogin(mode){
   document.getElementById('loginModal').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   initMap();
-refreshHUD();
-pushToLeaderboard();
-saveProfile();
-checkPollAlert();
-checkMOTD();
+  refreshHUD();
+  pushToLeaderboard();
+  saveProfile();
 }
 
 async function restoreSession(){
@@ -2140,38 +1996,16 @@ async function restoreSession(){
     document.getElementById('loginModal').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     initMap();
-refreshHUD();
-pushToLeaderboard();
-checkPollAlert();
-return true;
+    refreshHUD();
+    pushToLeaderboard();
+    return true;
   }catch(e){
     authToken = '';
     localStorage.removeItem('oa_token');
     return false;
   }
 }
-async function checkMOTD(){
 
-  try{
-
-    const res = await apiRequest('/api/motd');
-
-    if(res.motd){
-
-      alert(
-        "📜 Message du commandant\n\n" +
-        res.motd
-      );
-
-    }
-
-  }catch(e){
-
-    console.log("MOTD:", e);
-
-  }
-
-}
 async function logout(){
   try{
     if(authToken) await apiRequest('/api/logout', { method: 'POST' });
@@ -2186,95 +2020,7 @@ async function logout(){
   document.getElementById('passwordInput').value = '';
   setLoginStatus('Déconnecté.', 'var(--paper-dim)');
 }
-async function checkPollAlert(){
 
-  try{
-
-    const res = await apiRequest("/api/poll");
-
-    if(!res.poll || !res.poll.active)
-      return;
-
-
-    const pollId = res.poll.id;
-
-
-    // éviter de refaire apparaître le même sondage
-    if(localStorage.getItem("poll_seen_" + pollId))
-      return;
-
-
-    let text = "📊 Sondage\n\n";
-    text += res.poll.question + "\n\n";
-
-
-    res.poll.choices.forEach((choice,index)=>{
-      text += `${index + 1} - ${choice}\n`;
-    });
-
-
-    const answer = prompt(text);
-
-
-    // si le joueur ferme la fenêtre
-    if(answer === null){
-
-      localStorage.setItem(
-        "poll_seen_" + pollId,
-        "true"
-      );
-
-      return;
-    }
-
-
-    const choice = Number(answer);
-
-
-    if(
-      !choice ||
-      choice < 1 ||
-      choice > res.poll.choices.length
-    ){
-
-      alert("Choix invalide.");
-      return;
-
-    }
-
-
-    await apiRequest("/api/poll/vote",{
-
-      method:"POST",
-
-      body:{
-        choice: choice
-      }
-
-    });
-
-
-    localStorage.setItem(
-      "poll_seen_" + pollId,
-      "true"
-    );
-
-
-    alert("✅ Vote enregistré");
-
-
-  }catch(e){
-
-    console.log("Erreur sondage :", e);
-
-  }
-
-}
-setInterval(()=>{
-  if(profile){
-    checkPollAlert();
-  }
-},5000);
 restoreSession();
 </script>
 </body>
