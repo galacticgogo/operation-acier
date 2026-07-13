@@ -1604,7 +1604,6 @@ function renderProgress(){
         <div class="statline"><span>Difficulté</span><b>${profile.battleDifficulty || 'normal'}</b></div>
         <div class="statline"><span>Bonus permanent</span><b>+${Math.round((profile.prestige || 0) * 75)} puissance</b></div>
         <div class="statline"><span>Bonus généraux</span><b>${profile.general ? 'actif' : 'aucun'}</b></div>
-        <button class="btn secondary" id="bossFightBtn2">Boss mondial</button>
         <button class="btn secondary" id="refreshProgressBtn">Rafraîchir</button>
       </div>
     </div>`;
