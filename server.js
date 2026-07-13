@@ -722,25 +722,27 @@ async function executeAdminCommand(command, auth) {
       }
     };
   }
-  // sondage stop
+  // sondage <question>|<choix1>|<choix2>|<choix3>
+// sondage stop
 if(cmd === 'sondage' && parts[1] === 'stop'){
 
   if(!store.poll)
     throw new Error("Aucun sondage actif.");
 
+
   store.poll.active = false;
 
+
   await saveStore();
+
 
   return {
     ok:true,
     message:"Sondage arrêté."
   };
+
 }
-
-
-// sondage <question>|<choix1>|<choix2>|<choix3>
-if(cmd === 'sondage' && parts[1] !== 'result'){
+ if (cmd === 'sondage') {
 
   const text = parts.slice(1).join(' ');
 
@@ -748,34 +750,90 @@ if(cmd === 'sondage' && parts[1] !== 'result'){
 
   if(data.length < 3)
     throw new Error(
-      "Utilisation: sondage Question|Choix1|Choix2|Choix3"
+      'Utilisation: sondage Question|Choix1|Choix2|Choix3'
     );
 
 
   const question = data[0];
+
   const choices = data.slice(1);
 
 
   const pollId = crypto.randomBytes(8).toString('hex');
 
+store.poll = {
+  id: pollId,
+  question,
+  choices,
+  votes:{},
+  active:true,
+  createdAt:Date.now(),
+  endsAt:Date.now() + 15000
+};
+await saveStore();
+setTimeout(async()=>{
 
-  store.poll = {
-    id: pollId,
-    question,
-    choices,
-    votes:{},
-    active:true,
-    createdAt:Date.now(),
-    endsAt:Date.now()+15000
-  };
+  if(!store.poll || store.poll.id !== pollId)
+    return;
+
+
+  store.poll.active = false;
+
+
+  const result = {};
+
+  store.poll.choices.forEach(choice=>{
+    result[choice] = 0;
+  });
+
+
+  Object.values(store.poll.votes || {}).forEach(vote=>{
+
+    const index = Number(vote)-1;
+
+    if(index >= 0 && index < store.poll.choices.length){
+
+      result[store.poll.choices[index]]++;
+
+    }
+
+  });
 
 
   store.messages = store.messages || [];
 
   store.messages.push({
+
     id:crypto.randomBytes(8).toString('hex'),
-    type:"poll",
-    sender:"ADMIN",
+
+    type:'poll_result',
+
+    sender:'ADMIN',
+
+    text:
+      "📊 Résultat du sondage : " +
+      store.poll.question +
+      "\n" +
+      Object.entries(result)
+      .map(([k,v])=>`${k}: ${v} vote(s)`)
+      .join("\n"),
+
+    createdAt:Date.now()
+
+  });
+
+
+  await saveStore();
+
+
+},15000);
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:'poll',
+    sender:'ADMIN',
     text:`📊 Sondage : ${question}`,
     poll:store.poll,
     createdAt:Date.now()
@@ -785,80 +843,21 @@ if(cmd === 'sondage' && parts[1] !== 'result'){
   await saveStore();
 
 
-
-  // fin automatique après 15 secondes
-  setTimeout(async()=>{
-
-    if(!store.poll || store.poll.id !== pollId)
-      return;
-
-
-    store.poll.active = false;
-
-
-    const result={};
-
-
-    store.poll.choices.forEach(choice=>{
-      result[choice]=0;
-    });
-
-
-    Object.values(store.poll.votes || {}).forEach(vote=>{
-
-      const index = Number(vote)-1;
-
-      if(store.poll.choices[index]){
-        result[store.poll.choices[index]]++;
-      }
-
-    });
-
-
-
-    store.messages.push({
-
-      id:crypto.randomBytes(8).toString('hex'),
-
-      type:"poll_result",
-
-      sender:"ADMIN",
-
-      text:
-        "📊 Résultat du sondage :\n"+
-        store.poll.question+
-        "\n\n"+
-        Object.entries(result)
-        .map(([k,v])=>`${k}: ${v} vote(s)`)
-        .join("\n"),
-
-      createdAt:Date.now()
-
-    });
-
-
-    await saveStore();
-
-
-  },15000);
-
-
-
   return {
     ok:true,
     message:"Sondage créé"
   };
 
+if(!store.poll || !store.poll.active){
+  return sendJson(res,400,{
+    error:"Le sondage est terminé."
+  });
 }
-
-
-
 // sondage result
 if(cmd === 'sondage' && parts[1] === 'result'){
 
   if(!store.poll)
-    throw new Error("Aucun sondage.");
-
+    throw new Error('Aucun sondage.');
 
   const results={};
 
@@ -868,10 +867,10 @@ if(cmd === 'sondage' && parts[1] === 'result'){
   });
 
 
-  Object.values(store.poll.votes || {}).forEach(vote=>{
+  Object.values(store.poll.votes)
+  .forEach(vote=>{
 
-    const choice =
-      store.poll.choices[Number(vote)-1];
+    const choice = store.poll.choices[vote-1];
 
     if(choice)
       results[choice]++;
@@ -884,6 +883,455 @@ if(cmd === 'sondage' && parts[1] === 'result'){
     question:store.poll.question,
     results
   };
+
+}
+// stock get
+if(cmd === 'stock' && parts[1] === 'get'){
+
+  return {
+    ok:true,
+    stocks: store.stock || {}
+  };
+
+}
+
+
+// stock reset
+if(cmd === 'stock' && parts[1] === 'reset'){
+
+  store.stock = {
+    money:0,
+    gems:0,
+    infantry:0,
+    armor:0,
+    heavy:0,
+    jet:0,
+    carrier:0,
+    drone:0,
+    artillery:0,
+    helicopter:0,
+    submarine:0,
+    missile:0
+  };
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Stocks réinitialisés"
+  };
+
+}
+
+
+// stock add resource amount
+if(cmd === 'stock' && parts[1] === 'add' && parts[2] && parts[3]){
+
+  const resource = parts[2];
+  const amount = Number(parts[3]);
+
+  if(isNaN(amount)) throw new Error("Montant invalide.");
+
+  store.stock = store.stock || {};
+
+  store.stock[resource] =
+    (store.stock[resource] || 0) + amount;
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`${amount} ${resource} ajouté`
+  };
+
+}
+
+
+// stock remove
+if(cmd === 'stock' && parts[1] === 'remove' && parts[2] && parts[3]){
+
+  const resource = parts[2];
+  const amount = Number(parts[3]);
+
+  if(!store.stock || !store.stock[resource])
+    throw new Error("Ressource inexistante.");
+
+  store.stock[resource] -= amount;
+
+  if(store.stock[resource] < 0)
+    store.stock[resource]=0;
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`${amount} ${resource} retiré`
+  };
+
+}
+
+
+// stock fill
+if(cmd === 'stock' && parts[1] === 'fill'){
+
+  store.stock={
+    money:999999,
+    gems:999999,
+    infantry:999999,
+    armor:999999,
+    heavy:999999,
+    jet:999999,
+    carrier:999999,
+    drone:999999,
+    artillery:999999,
+    helicopter:999999,
+    submarine:999999,
+    missile:999999
+  };
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Stocks remplis"
+  };
+
+}
+
+
+// stock empty
+if(cmd === 'stock' && parts[1] === 'empty'){
+
+  store.stock={};
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Stocks vidés"
+  };
+
+}
+// bonus money <name> <mult> <duration>
+if(cmd === 'bonus' && parts[1] === 'money' && parts[2] && parts[3] && parts[4]){
+
+  const targetName = parts[2];
+  const mult = Number(parts[3]);
+  const duration = Number(parts[4]);
+
+  const account = getAccountByName(targetName);
+
+  if(!account)
+    throw new Error("Compte introuvable.");
+
+  account.profile.bonus = account.profile.bonus || {};
+
+  account.profile.bonus.money = {
+    multiplier: mult,
+    expires: Date.now() + duration * 1000
+  };
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`Bonus argent x${mult} activé pour ${targetName} (${duration}s)`
+  };
+
+}
+
+
+// bonus xp <name> <mult> <duration>
+if(cmd === 'bonus' && parts[1] === 'xp' && parts[2] && parts[3] && parts[4]){
+
+  const targetName = parts[2];
+  const mult = Number(parts[3]);
+  const duration = Number(parts[4]);
+
+  const account = getAccountByName(targetName);
+
+  if(!account)
+    throw new Error("Compte introuvable.");
+
+  account.profile.bonus = account.profile.bonus || {};
+
+  account.profile.bonus.xp = {
+    multiplier: mult,
+    expires: Date.now() + duration * 1000
+  };
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`Bonus XP x${mult} activé pour ${targetName} (${duration}s)`
+  };
+
+}
+
+
+// bonus production <name> <mult> <duration>
+if(cmd === 'bonus' && parts[1] === 'production' && parts[2] && parts[3] && parts[4]){
+
+  const targetName = parts[2];
+  const mult = Number(parts[3]);
+  const duration = Number(parts[4]);
+
+  const account = getAccountByName(targetName);
+
+  if(!account)
+    throw new Error("Compte introuvable.");
+
+  account.profile.bonus = account.profile.bonus || {};
+
+  account.profile.bonus.production = {
+    multiplier: mult,
+    expires: Date.now() + duration * 1000
+  };
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`Bonus production x${mult} activé pour ${targetName} (${duration}s)`
+  };
+
+}
+
+
+// bonus remove <name>
+if(cmd === 'bonus' && parts[1] === 'remove' && parts[2]){
+
+  const targetName = parts[2];
+
+  const account = getAccountByName(targetName);
+
+  if(!account)
+    throw new Error("Compte introuvable.");
+
+  account.profile.bonus = {};
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`Tous les bonus retirés à ${targetName}`
+  };
+
+}
+// event start doublemoney
+if(cmd === 'event' && parts[1] === 'start' && parts[2] === 'doublemoney'){
+
+  store.globalEvent = {
+    type:"doublemoney",
+    multiplier:2,
+    active:true,
+    startedAt:Date.now()
+  };
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:"event",
+    sender:"ADMIN",
+    text:"💰 Événement : Argent x2 activé !",
+    createdAt:Date.now()
+  });
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Événement Double Argent activé"
+  };
+
+}
+
+
+// event start doublexp
+if(cmd === 'event' && parts[1] === 'start' && parts[2] === 'doublexp'){
+
+  store.globalEvent = {
+    type:"doublexp",
+    multiplier:2,
+    active:true,
+    startedAt:Date.now()
+  };
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:"event",
+    sender:"ADMIN",
+    text:"⭐ Événement : XP x2 activé !",
+    createdAt:Date.now()
+  });
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Événement Double XP activé"
+  };
+
+}
+
+
+// event start production
+if(cmd === 'event' && parts[1] === 'start' && parts[2] === 'production'){
+
+  store.globalEvent = {
+    type:"production",
+    multiplier:2,
+    active:true,
+    startedAt:Date.now()
+  };
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:"event",
+    sender:"ADMIN",
+    text:"🏭 Événement : Production x2 activée !",
+    createdAt:Date.now()
+  });
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Événement Production x2 activé"
+  };
+
+}
+
+
+// event stop
+if(cmd === 'event' && parts[1] === 'stop'){
+
+  store.globalEvent = {
+    active:false
+  };
+
+  store.messages = store.messages || [];
+
+  store.messages.push({
+    id:crypto.randomBytes(8).toString('hex'),
+    type:"event",
+    sender:"ADMIN",
+    text:"⛔ Tous les événements sont arrêtés.",
+    createdAt:Date.now()
+  });
+
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:"Événements arrêtés"
+  };
+
+}
+
+// motd <message>
+if(cmd === 'motd' && parts[1]){
+
+  const message = parts.slice(1).join(' ');
+
+  store.motd = message;
+
+  await saveStore();
+
+  return {
+    ok:true,
+    message:`Message d'accueil défini : ${message}`
+  };
+
+}
+
+
+  throw new Error('Commande inconnue. Voir le panneau admin pour la liste des commandes.');
+} 
+}
+async function checkPollAlert(){
+
+    try{
+
+        const res = await apiRequest("/api/poll");
+
+        if(!res.poll || !res.poll.active)
+            return;
+
+
+        // éviter de remettre l'alerte en boucle
+        const pollId = res.poll.id;
+
+        if(localStorage.getItem("poll_seen_"+pollId))
+            return;
+
+
+        let text = "📊 Sondage\n\n";
+        text += res.poll.question+"\n\n";
+
+
+        res.poll.choices.forEach((choice,index)=>{
+
+            text += `${index+1} - ${choice}\n`;
+
+        });
+
+
+        const answer = prompt(text);
+
+
+        if(answer === null)
+            return;
+
+
+        const choice = Number(answer);
+
+
+        if(
+            !choice ||
+            choice < 1 ||
+            choice > res.poll.choices.length
+        ){
+
+            alert("Choix invalide");
+
+            return;
+
+        }
+
+
+        await apiRequest("/api/poll/vote",{
+
+            method:"POST",
+
+            body:{
+                choice
+            }
+
+        });
+
+
+        localStorage.setItem(
+            "poll_seen_"+pollId,
+            "true"
+        );
+
+
+        alert("✅ Vote enregistré");
+
+
+    }catch(e){
+
+        console.log("Erreur sondage:",e);
+
+    }
 
 }
 function readBody(req) {
@@ -1053,67 +1501,6 @@ async function addClanMessage(clanName, message, sender) {
   store.clans[clanName] = clan;
   await saveStore();
   return store.clans;
-}
-return sendJson(res, 404, { error: 'Route inconnue.' });
-// voter au sondage
-if(req.method === 'POST' && url.pathname === '/api/poll/vote'){
-
-  const auth = requireAuth(req);
-
-  if(!auth)
-    return sendJson(res,401,{
-      error:"Non authentifié."
-    });
-
-
-  const body = await readBody(req);
-
-  const choice = Number(body && body.choice);
-
-
-  if(!store.poll || !store.poll.active){
-
-    return sendJson(res,400,{
-      error:"Aucun sondage actif."
-    });
-
-  }
-
-
-  if(
-    !choice ||
-    choice < 1 ||
-    choice > store.poll.choices.length
-  ){
-
-    return sendJson(res,400,{
-      error:"Choix invalide."
-    });
-
-  }
-
-
-  // empêche de voter plusieurs fois
-  if(store.poll.votes[auth.account.name]){
-
-    return sendJson(res,400,{
-      error:"Vous avez déjà voté."
-    });
-
-  }
-
-
-  store.poll.votes[auth.account.name] = choice;
-
-
-  await saveStore();
-
-
-  return sendJson(res,200,{
-    ok:true,
-    message:"Vote enregistré."
-  });
-
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1331,6 +1718,38 @@ if (req.method === 'GET' && url.pathname === '/api/poll') {
     poll
   });
 
+} 
+// sondage result
+if(cmd === 'sondage' && parts[1] === 'result'){
+
+  if(!store.poll)
+    throw new Error('Aucun sondage.');
+
+  const results={};
+
+
+  store.poll.choices.forEach(choice=>{
+    results[choice]=0;
+  });
+
+
+  Object.values(store.poll.votes)
+  .forEach(vote=>{
+
+    const choice = store.poll.choices[vote-1];
+
+    if(choice)
+      results[choice]++;
+
+  });
+
+
+  return {
+    ok:true,
+    question:store.poll.question,
+    results
+  };
+
 }
     return sendJson(res, 404, { error: 'Route inconnue.' });
   } catch (error) {
@@ -1356,4 +1775,4 @@ process.on('SIGINT', () => {
   server.close(() => {
     process.exit(0);
   });
-});}
+});
