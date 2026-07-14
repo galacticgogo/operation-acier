@@ -85,6 +85,25 @@ function ensureSeedAccount() {
   };
   return store.accounts[key];
 }
+// Renvoie les broadcasts qu'un joueur n'a pas encore vus
+function getUnreadBroadcasts(auth) {
+  const name = auth.name; // adapte selon comment "auth" identifie le joueur
+  const messages = store.messages || [];
+  return messages.filter(m => m.type === 'broadcast' && !(m.readBy || []).includes(name));
+}
+ 
+// Marque un message comme lu par ce joueur
+async function ackBroadcast(messageId, auth) {
+  const name = auth.name;
+  const messages = store.messages || [];
+  const msg = messages.find(m => m.id === messageId);
+  if (msg) {
+    msg.readBy = msg.readBy || [];
+    if (!msg.readBy.includes(name)) msg.readBy.push(name);
+    await saveStore();
+  }
+  return { ok: true };
+}
 
 async function initializeStore() {
   removeTestAccounts();
@@ -342,14 +361,24 @@ function isAdmin(auth) {
   return auth && accountKey(auth.account.name) === accountKey(SEED_ACCOUNT_NAME);
 }
 
+function ensureStock() {
+  if (!store.stock) store.stock = { ...STOCK_DEFAULTS };
+  return store.stock;
+}
+ 
+function ensureBonuses(account) {
+  if (!account.profile.bonuses) account.profile.bonuses = {};
+  return account.profile.bonuses;
+}
+ 
 async function executeAdminCommand(command, auth) {
   if (!isAdmin(auth)) throw new Error('Acces admin requis.');
-  
+ 
   const parts = (command || '').trim().split(/\s+/);
   if (!parts[0]) throw new Error('Commande vide.');
-  
+ 
   const cmd = parts[0].toLowerCase();
-  
+ 
   // give money <name> <amount>
   if (cmd === 'give' && parts[1] === 'money' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -362,7 +391,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `${amount} argent donne a ${targetName}` };
   }
-  
+ 
   // give gems <name> <amount>
   if (cmd === 'give' && parts[1] === 'gems' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -375,7 +404,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `${amount} gemmes donnees a ${targetName}` };
   }
-  
+ 
   // give units <name> <unitId> <amount>
   if (cmd === 'give' && parts[1] === 'units' && parts[2] && parts[3] && parts[4]) {
     const targetName = parts[2];
@@ -390,7 +419,35 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `${amount}x ${unitId} donne a ${targetName}` };
   }
-  
+ 
+  // give xp <name> <amount>
+  if (cmd === 'give' && parts[1] === 'xp' && parts[2] && parts[3]) {
+    const targetName = parts[2];
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.xp += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount} XP donne a ${targetName}` };
+  }
+ 
+  // give factory <name> <factoryId> <amount>
+  if (cmd === 'give' && parts[1] === 'factory' && parts[2] && parts[3] && parts[4]) {
+    const targetName = parts[2];
+    const factoryId = parts[3].toLowerCase();
+    const amount = Number(parts[4]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    if (!account.profile.factories.hasOwnProperty(factoryId)) throw new Error('Usine invalide.');
+    account.profile.factories[factoryId] += amount;
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `${amount}x usine ${factoryId} donnee a ${targetName}` };
+  }
+ 
   // set money <name> <amount>
   if (cmd === 'set' && parts[1] === 'money' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -403,7 +460,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Argent de ${targetName} defini a ${amount}` };
   }
-  
+ 
   // set gems <name> <amount>
   if (cmd === 'set' && parts[1] === 'gems' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -416,7 +473,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Gemmes de ${targetName} definies a ${amount}` };
   }
-  
+ 
   // set xp <name> <amount>
   if (cmd === 'set' && parts[1] === 'xp' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -429,7 +486,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `XP de ${targetName} defini a ${amount}` };
   }
-  
+ 
   // set level <name> <level>
   if (cmd === 'set' && parts[1] === 'level' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -442,7 +499,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Niveau de ${targetName} defini a ${level}` };
   }
-  
+ 
   // set population <name> <amount>
   if (cmd === 'set' && parts[1] === 'population' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -455,7 +512,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Population de ${targetName} definie a ${amount}` };
   }
-  
+ 
   // set prestige <name> <amount>
   if (cmd === 'set' && parts[1] === 'prestige' && parts[2] && parts[3]) {
     const targetName = parts[2];
@@ -468,7 +525,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Prestige de ${targetName} defini a ${amount}` };
   }
-  
+ 
   // set units <name> <unitId> <amount>
   if (cmd === 'set' && parts[1] === 'units' && parts[2] && parts[3] && parts[4]) {
     const targetName = parts[2];
@@ -483,20 +540,20 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `${unitId} de ${targetName} defini a ${amount}` };
   }
-  
-  // give xp <name> <amount>
-  if (cmd === 'give' && parts[1] === 'xp' && parts[2] && parts[3]) {
+ 
+  // set bank <name> <amount>
+  if (cmd === 'set' && parts[1] === 'bank' && parts[2] && parts[3]) {
     const targetName = parts[2];
     const amount = Number(parts[3]);
     if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
     const account = getAccountByName(targetName);
     if (!account) throw new Error('Compte introuvable.');
-    account.profile.xp += amount;
+    account.profile.bank.deposited = amount;
     account.updatedAt = Date.now();
     await saveStore();
-    return { ok: true, message: `${amount} XP donne a ${targetName}` };
+    return { ok: true, message: `Banque de ${targetName} definie a ${amount}` };
   }
-  
+ 
   // reset all
   if (cmd === 'reset' && parts[1] === 'all') {
     store.accounts = {};
@@ -507,7 +564,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: 'Tous les comptes reinitialises' };
   }
-  
+ 
   // reset <name>
   if (cmd === 'reset' && parts[1]) {
     const targetName = parts[1];
@@ -519,7 +576,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Compte ${targetName} reinitialise` };
   }
-  
+ 
   // delete <name>
   if (cmd === 'delete' && parts[1]) {
     const targetName = parts[1];
@@ -533,7 +590,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Compte ${targetName} supprime` };
   }
-  
+ 
   // list accounts
   if (cmd === 'list' && parts[1] === 'accounts') {
     const accounts = Object.values(store.accounts).map(account => ({
@@ -546,7 +603,7 @@ async function executeAdminCommand(command, auth) {
     })).sort((a, b) => b.power - a.power);
     return { ok: true, accounts };
   }
-  
+ 
   // get <name>
   if (cmd === 'get' && parts[1]) {
     const targetName = parts[1];
@@ -555,7 +612,31 @@ async function executeAdminCommand(command, auth) {
     const profile = normalizeProfile(account.profile, account.name);
     return { ok: true, profile };
   }
-  
+ 
+  // info <name>
+  if (cmd === 'info' && parts[1]) {
+    const targetName = parts[1];
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    const profile = normalizeProfile(account.profile, account.name);
+    return {
+      ok: true,
+      info: {
+        name: account.name,
+        createdAt: new Date(account.createdAt).toISOString(),
+        updatedAt: new Date(account.updatedAt).toISOString(),
+        money: Math.round(profile.money),
+        gems: profile.gems,
+        xp: profile.xp,
+        level: profile.commanderLevel,
+        prestige: profile.prestige,
+        population: profile.population,
+        power: computePower(profile),
+        clan: profile.clan || 'aucun',
+      }
+    };
+  }
+ 
   // wipe all
   if (cmd === 'wipe' && parts[1] === 'all') {
     store.accounts = {};
@@ -566,23 +647,134 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: 'Tous les donnees supprimees, compte admin recree' };
   }
-  
-  // broadcast <message>
-  if (cmd === 'broadcast' && parts[1]) {
-    const message = parts.slice(1).join(' ');
+ 
+  // online count
+  if (cmd === 'online') {
+    const count = Object.keys(store.sessions).length;
+    return { ok: true, online: count, message: `${count} joueurs connectes` };
+  }
+ 
+  /* ---------------- STOCK (nouveau) ---------------- */
+ 
+  // stock fill
+  if (cmd === 'stock' && parts[1] === 'fill') {
+    const stock = ensureStock();
+    Object.keys(stock).forEach(key => { stock[key] = STOCK_FILL_VALUE; });
+    await saveStore();
+    return { ok: true, message: 'Stock rempli au maximum' };
+  }
+ 
+  // stock empty
+  if (cmd === 'stock' && parts[1] === 'empty') {
+    const stock = ensureStock();
+    Object.keys(stock).forEach(key => { stock[key] = 0; });
+    await saveStore();
+    return { ok: true, message: 'Stock vide' };
+  }
+ 
+  // stock reset
+  if (cmd === 'stock' && parts[1] === 'reset') {
+    store.stock = { ...STOCK_DEFAULTS };
+    await saveStore();
+    return { ok: true, message: 'Stock reinitialise aux valeurs par defaut' };
+  }
+ 
+  // stock add <resource> <amount>
+  if (cmd === 'stock' && parts[1] === 'add' && parts[2] && parts[3]) {
+    const resource = parts[2].toLowerCase();
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const stock = ensureStock();
+    stock[resource] = (stock[resource] || 0) + amount;
+    await saveStore();
+    return { ok: true, message: `${amount}x ${resource} ajoute au stock` };
+  }
+ 
+  // stock remove <resource> <amount>
+  if (cmd === 'stock' && parts[1] === 'remove' && parts[2] && parts[3]) {
+    const resource = parts[2].toLowerCase();
+    const amount = Number(parts[3]);
+    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
+    const stock = ensureStock();
+    stock[resource] = Math.max(0, (stock[resource] || 0) - amount);
+    await saveStore();
+    return { ok: true, message: `${amount}x ${resource} retire du stock` };
+  }
+ 
+  // stock get
+  if (cmd === 'stock' && parts[1] === 'get') {
+    return { ok: true, stock: ensureStock() };
+  }
+ 
+  /* ---------------- BONUS (nouveau) ---------------- */
+ 
+  // bonus money|xp|production <name> <mult> <duration_secondes>
+  if (cmd === 'bonus' && ['money', 'xp', 'production'].includes(parts[1]) && parts[2] && parts[3] && parts[4]) {
+    const type = parts[1];
+    const targetName = parts[2];
+    const mult = Number(parts[3]);
+    const duration = Number(parts[4]);
+    if (isNaN(mult) || mult <= 0) throw new Error('Multiplicateur invalide.');
+    if (isNaN(duration) || duration <= 0) throw new Error('Duree invalide.');
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    const bonuses = ensureBonuses(account);
+    bonuses[type] = { multiplier: mult, expiresAt: Date.now() + duration * 1000 };
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Bonus ${type} x${mult} applique a ${targetName} pour ${duration}s` };
+  }
+ 
+  // bonus remove <name>
+  if (cmd === 'bonus' && parts[1] === 'remove' && parts[2]) {
+    const targetName = parts[2];
+    const account = getAccountByName(targetName);
+    if (!account) throw new Error('Compte introuvable.');
+    account.profile.bonuses = {};
+    account.updatedAt = Date.now();
+    await saveStore();
+    return { ok: true, message: `Bonus retires pour ${targetName}` };
+  }
+ 
+  /* ---------------- EVENEMENTS GLOBAUX (nouveau) ---------------- */
+ 
+  // event start doublemoney|doublexp|production
+  if (cmd === 'event' && parts[1] === 'start' && parts[2]) {
+    const type = parts[2].toLowerCase();
+    if (!['doublemoney', 'doublexp', 'production'].includes(type)) throw new Error('Type d\'evenement invalide.');
+    store.activeEvent = { type, startedAt: Date.now() };
+    store.messages = store.messages || [];
+    const labels = {
+      doublemoney: '💵 Double Argent activé pour tout le monde !',
+      doublexp: '⭐ Double XP activé pour tout le monde !',
+      production: '🏭 Production x2 activée pour tout le monde !',
+    };
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'event',
+      sender: 'SYSTÈME',
+      text: labels[type],
+      createdAt: Date.now(),
+    });
+    await saveStore();
+    return { ok: true, message: `Evenement ${type} demarre` };
+  }
+ 
+  // event stop
+  if (cmd === 'event' && parts[1] === 'stop') {
+    store.activeEvent = null;
     store.messages = store.messages || [];
     store.messages.push({
       id: crypto.randomBytes(8).toString('hex'),
-      type: 'broadcast',
-      sender: 'ADMIN',
-      text: message,
+      type: 'event',
+      sender: 'SYSTÈME',
+      text: '⛔ Événement terminé.',
       createdAt: Date.now(),
     });
-    store.messages = store.messages.slice(-100);
     await saveStore();
-    return { ok: true, message: `Broadcast envoye: ${message}` };
+    return { ok: true, message: 'Evenement arrete' };
   }
-  
+ 
   // event drop <amount>
   if (cmd === 'event' && parts[1] === 'drop' && parts[2]) {
     const amount = Number(parts[2]);
@@ -605,7 +797,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Événement: ${amount} argent drop pour tous` };
   }
-  
+ 
   // event gems <amount>
   if (cmd === 'event' && parts[1] === 'gems' && parts[2]) {
     const amount = Number(parts[2]);
@@ -628,7 +820,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Événement: ${amount} gemmes drop pour tous` };
   }
-  
+ 
   // event xp <amount>
   if (cmd === 'event' && parts[1] === 'xp' && parts[2]) {
     const amount = Number(parts[2]);
@@ -651,78 +843,47 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `Événement: ${amount} XP drop pour tous` };
   }
-  
+ 
+  /* ---------------- MESSAGES ---------------- */
+ 
+  // broadcast <message> -> déclenche le popup obligatoire chez tous les joueurs
+  if (cmd === 'broadcast' && parts[1]) {
+    const message = parts.slice(1).join(' ');
+    store.messages = store.messages || [];
+    store.messages.push({
+      id: crypto.randomBytes(8).toString('hex'),
+      type: 'broadcast',
+      sender: 'ADMIN',
+      text: message,
+      createdAt: Date.now(),
+      readBy: [], // sert au popup: un message n'est affiché qu'une fois par joueur
+    });
+    store.messages = store.messages.slice(-100);
+    await saveStore();
+    return { ok: true, message: `Broadcast envoye: ${message}` };
+  }
+ 
+  // motd <message> (nouveau)
+  if (cmd === 'motd' && parts[1]) {
+    const message = parts.slice(1).join(' ');
+    store.motd = message;
+    await saveStore();
+    return { ok: true, message: `Message d'accueil defini: ${message}` };
+  }
+ 
   // messages list
   if (cmd === 'messages' && parts[1] === 'list') {
     const messages = (store.messages || []).slice(-20);
     return { ok: true, messages };
   }
-  
-  // messages clear
-  if (cmd === 'messages' && parts[1] === 'clear') {
+ 
+  // clear messages / messages clear (les deux formes sont acceptées)
+  if ((cmd === 'clear' && parts[1] === 'messages') || (cmd === 'messages' && parts[1] === 'clear')) {
     store.messages = [];
     await saveStore();
     return { ok: true, message: 'Messages effaces' };
   }
-  
-  // give factory <name> <factoryId> <amount>
-  if (cmd === 'give' && parts[1] === 'factory' && parts[2] && parts[3] && parts[4]) {
-    const targetName = parts[2];
-    const factoryId = parts[3].toLowerCase();
-    const amount = Number(parts[4]);
-    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
-    const account = getAccountByName(targetName);
-    if (!account) throw new Error('Compte introuvable.');
-    if (!account.profile.factories.hasOwnProperty(factoryId)) throw new Error('Usine invalide.');
-    account.profile.factories[factoryId] += amount;
-    account.updatedAt = Date.now();
-    await saveStore();
-    return { ok: true, message: `${amount}x usine ${factoryId} donnee a ${targetName}` };
-  }
-  
-  // set bank <name> <amount>
-  if (cmd === 'set' && parts[1] === 'bank' && parts[2] && parts[3]) {
-    const targetName = parts[2];
-    const amount = Number(parts[3]);
-    if (isNaN(amount) || amount < 0) throw new Error('Montant invalide.');
-    const account = getAccountByName(targetName);
-    if (!account) throw new Error('Compte introuvable.');
-    account.profile.bank.deposited = amount;
-    account.updatedAt = Date.now();
-    await saveStore();
-    return { ok: true, message: `Banque de ${targetName} definie a ${amount}` };
-  }
-  
-  // online count
-  if (cmd === 'online') {
-    const count = Object.keys(store.sessions).length;
-    return { ok: true, online: count, message: `${count} joueurs connectes` };
-  }
-  
-  // info <name>
-  if (cmd === 'info' && parts[1]) {
-    const targetName = parts[1];
-    const account = getAccountByName(targetName);
-    if (!account) throw new Error('Compte introuvable.');
-    const profile = normalizeProfile(account.profile, account.name);
-    return { 
-      ok: true, 
-      info: {
-        name: account.name,
-        createdAt: new Date(account.createdAt).toISOString(),
-        updatedAt: new Date(account.updatedAt).toISOString(),
-        money: Math.round(profile.money),
-        gems: profile.gems,
-        xp: profile.xp,
-        level: profile.commanderLevel,
-        prestige: profile.prestige,
-        population: profile.population,
-        power: computePower(profile),
-        clan: profile.clan || 'aucun',
-      }
-    };
-  }
-  
+ 
   throw new Error('Commande inconnue. Voir le panneau admin pour la liste des commandes.');
 }
 

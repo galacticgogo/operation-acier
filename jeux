@@ -639,7 +639,117 @@ async function fetchClanChat(clan){
 async function sendClanChat(clan, text){
   return apiRequest('/api/clan-chat', { method:'POST', body: { clan, text } });
 }
-
+function showBroadcastPopup(message) {
+    // Overlay plein écran, ne se ferme qu'au clic sur le bouton
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position:fixed; inset:0; background:rgba(0,0,0,0.7);
+        display:flex; align-items:center; justify-content:center;
+        z-index:9999;
+    `;
+ 
+    const box = document.createElement("div");
+    box.style.cssText = `
+        background:var(--panel, #1e1e1e); color:var(--text, #fff);
+        border:1px solid var(--line, #444); border-radius:8px;
+        padding:24px; max-width:420px; width:90%;
+        text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+    `;
+ 
+    box.innerHTML = `
+        <div style="font-size:1.1em; font-weight:bold; margin-bottom:12px;">
+            📣 Message de l'administration
+        </div>
+        <div style="white-space:pre-wrap; margin-bottom:20px;">
+            ${escapeHtml(message.text)}
+        </div>
+        <button id="closeBroadcastBtn" class="admin-btn">Fermer</button>
+    `;
+ 
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+ 
+    document.getElementById("closeBroadcastBtn").onclick = async () => {
+        overlay.remove();
+        try {
+            await apiRequest("/api/messages/ack", {
+                method: "POST",
+                body: { id: message.id }
+            });
+        } catch (err) {
+            console.error("Erreur ack message:", err);
+        }
+    };
+}
+ 
+function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+ 
+let broadcastQueue = [];
+let showingBroadcast = false;
+ 
+function processBroadcastQueue() {
+    if (showingBroadcast || broadcastQueue.length === 0) return;
+    showingBroadcast = true;
+    const message = broadcastQueue.shift();
+    showBroadcastPopup(message);
+    // on relâche le verrou après la fermeture (voir override ci-dessous)
+    const originalOnclick = document.getElementById("closeBroadcastBtn")?.onclick;
+}
+ 
+async function checkBroadcasts() {
+    try {
+        const res = await apiRequest("/api/messages/unread", { method: "POST" });
+        if (res.messages && res.messages.length) {
+            broadcastQueue.push(...res.messages);
+            if (!showingBroadcast) showNextBroadcast();
+        }
+    } catch (err) {
+        // silencieux, on réessaiera au prochain intervalle
+    }
+}
+ 
+function showNextBroadcast() {
+    if (broadcastQueue.length === 0) {
+        showingBroadcast = false;
+        return;
+    }
+    showingBroadcast = true;
+    const message = broadcastQueue.shift();
+ 
+    const overlay = document.createElement("div");
+    overlay.style.cssText = `
+        position:fixed; inset:0; background:rgba(0,0,0,0.7);
+        display:flex; align-items:center; justify-content:center; z-index:9999;
+    `;
+    const box = document.createElement("div");
+    box.style.cssText = `
+        background:var(--panel, #1e1e1e); color:var(--text, #fff);
+        border:1px solid var(--line, #444); border-radius:8px;
+        padding:24px; max-width:420px; width:90%; text-align:center;
+        box-shadow:0 8px 24px rgba(0,0,0,0.5);
+    `;
+    box.innerHTML = `
+        <div style="font-size:1.1em; font-weight:bold; margin-bottom:12px;">📣 Message de l'administration</div>
+        <div style="white-space:pre-wrap; margin-bottom:20px;">${escapeHtml(message.text)}</div>
+        <button id="closeBroadcastBtn" class="admin-btn">Fermer</button>
+    `;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+ 
+    document.getElementById("closeBroadcastBtn").onclick = async () => {
+        overlay.remove();
+        try {
+            await apiRequest("/api/messages/ack", { method: "POST", body: { id: message.id } });
+        } catch (err) {
+            console.error("Erreur ack message:", err);
+        }
+        showNextBroadcast(); // affiche le suivant s'il y en a un
+    };
+}
 /* shared leaderboard */
 async function pushToLeaderboard(){
   try{ await saveProfile(); }catch(e){ console.error(e); }
@@ -975,510 +1085,251 @@ document.querySelectorAll('.navbtn').forEach(btn=>{
 /* ============================ ADMIN ============================ */
 function renderAdmin() {
     const el = document.getElementById("adminBody");
-
+ 
     el.innerHTML = `
         <div class="section-title display">🛠 Panneau Administrateur</div>
-
+ 
         <div class="admin-section">
             <h4>👤 Joueurs</h4>
-
             <div class="admin-grid">
                 <button class="admin-btn" id="giveMoney">💰 Argent</button>
                 <button class="admin-btn" id="giveGems">💎 Gemmes</button>
                 <button class="admin-btn" id="giveXP">⭐ XP</button>
                 <button class="admin-btn" id="giveUnits">🪖 Unités</button>
-
+ 
                 <button class="admin-btn" id="setMoney">Définir Argent</button>
                 <button class="admin-btn" id="setGems">Définir Gemmes</button>
                 <button class="admin-btn" id="setXP">Définir XP</button>
                 <button class="admin-btn" id="setLevel">Définir Niveau</button>
-
+ 
                 <button class="admin-btn" id="resetPlayer">Reset Joueur</button>
                 <button class="admin-btn" id="deletePlayer">Supprimer Joueur</button>
-
+ 
                 <button class="admin-btn" id="playerInfo">Infos Joueur</button>
                 <button class="admin-btn" id="listAccounts">Liste Comptes</button>
             </div>
         </div>
-
+ 
         <div class="admin-section">
             <h4>📦 Stocks</h4>
-
             <div class="admin-grid">
-
-                <button class="admin-btn" id="stockFill">
-                    📦 Remplir
-                </button>
-
-                <button class="admin-btn" id="stockEmpty">
-                    📭 Vider
-                </button>
-
-                <button class="admin-btn" id="stockReset">
-                    ♻ Reset
-                </button>
-
-                <button class="admin-btn" id="stockAdd">
-                    ➕ Ajouter
-                </button>
-
-                <button class="admin-btn" id="stockRemove">
-                    ➖ Retirer
-                </button>
-
-                <button class="admin-btn" id="stockInfo">
-                    📊 Voir stocks
-                </button>
-
+                <button class="admin-btn" id="stockFill">📦 Remplir</button>
+                <button class="admin-btn" id="stockEmpty">📭 Vider</button>
+                <button class="admin-btn" id="stockReset">♻ Reset</button>
+                <button class="admin-btn" id="stockAdd">➕ Ajouter</button>
+                <button class="admin-btn" id="stockRemove">➖ Retirer</button>
+                <button class="admin-btn" id="stockInfo">📊 Voir stocks</button>
             </div>
         </div>
-
+ 
         <div class="admin-section">
-
             <h4>⭐ Bonus</h4>
-
             <div class="admin-grid">
-
-                <button class="admin-btn" id="bonusMoney">
-                    💰 Bonus Argent
-                </button>
-
-                <button class="admin-btn" id="bonusXP">
-                    ⭐ Bonus XP
-                </button>
-
-                <button class="admin-btn" id="bonusProduction">
-                    🏭 Bonus Production
-                </button>
-
-                <button class="admin-btn" id="bonusRemove">
-                    ❌ Retirer Bonus
-                </button>
-
+                <button class="admin-btn" id="bonusMoney">💰 Bonus Argent</button>
+                <button class="admin-btn" id="bonusXP">⭐ Bonus XP</button>
+                <button class="admin-btn" id="bonusProduction">🏭 Bonus Production</button>
+                <button class="admin-btn" id="bonusRemove">❌ Retirer Bonus</button>
             </div>
-
         </div>
-
+ 
         <div class="admin-section">
-
             <h4>🌍 Événements</h4>
-
             <div class="admin-grid">
-
-                <button class="admin-btn" id="eventMoney">
-                    💵 Double Argent
-                </button>
-
-                <button class="admin-btn" id="eventXP">
-                    ⭐ Double XP
-                </button>
-
-                <button class="admin-btn" id="eventProduction">
-                    🏭 Production x2
-                </button>
-
-                <button class="admin-btn" id="eventStop">
-                    ⛔ Stop Event
-                </button>
-
+                <button class="admin-btn" id="eventMoney">💵 Double Argent</button>
+                <button class="admin-btn" id="eventXP">⭐ Double XP</button>
+                <button class="admin-btn" id="eventProduction">🏭 Production x2</button>
+                <button class="admin-btn" id="eventStop">⛔ Stop Event</button>
             </div>
-
         </div>
-
+ 
         <div class="admin-section">
-
             <h4>📢 Messages</h4>
-
             <div class="admin-grid">
-
-                <button class="admin-btn" id="broadcast">
-                    📣 Annonce
-                </button>
-
-                <button class="admin-btn" id="motd">
-                    📜 Message accueil
-                </button>
-
-                <button class="admin-btn" id="clearMessages">
-                    🗑 Vider messages
-                </button>
-
+                <button class="admin-btn" id="broadcast">📣 Annonce (popup joueurs)</button>
+                <button class="admin-btn" id="motd">📜 Message accueil</button>
+                <button class="admin-btn" id="clearMessages">🗑 Vider messages</button>
             </div>
-
         </div>
-
+ 
         <div class="admin-section">
-
             <h4>⚙ Serveur</h4>
-
             <div class="admin-grid">
-
-                <button class="admin-btn danger" id="wipe">
-                    🔥 WIPE
-                </button>
-
-                <button class="admin-btn" id="resetAll">
-                    ♻ Reset comptes
-                </button>
-
+                <button class="admin-btn danger" id="wipe">🔥 WIPE</button>
+                <button class="admin-btn" id="resetAll">♻ Reset comptes</button>
             </div>
-
         </div>
-
+ 
         <div id="adminResult"
-             style="
-             margin-top:20px;
-             background:var(--panel);
-             padding:12px;
-             border:1px solid var(--line);
-             border-radius:4px;
-             white-space:pre-wrap;
-             ">
+             style="margin-top:20px;background:var(--panel);padding:12px;border:1px solid var(--line);border-radius:4px;white-space:pre-wrap;">
         </div>
     `;
-    async function runCommand(command){
-
-        try{
-
-            const res = await apiRequest("/api/admin/command",{
-                method:"POST",
-                body:{
-                    command
-                }
+ 
+    async function runCommand(command) {
+        try {
+            const res = await apiRequest("/api/admin/command", {
+                method: "POST",
+                body: { command }
             });
-
             document.getElementById("adminResult").textContent =
-                res.message ||
-                JSON.stringify(res,null,2);
-
-        }catch(err){
-
-            document.getElementById("adminResult").textContent =
-                err.message;
-
+                res.message || JSON.stringify(res, null, 2);
+        } catch (err) {
+            document.getElementById("adminResult").textContent = err.message;
         }
-
     }
-
-    document.getElementById("giveMoney").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const amount=prompt("Montant");
-        if(!amount)return;
-
+ 
+    /* ---------- JOUEURS ---------- */
+ 
+    document.getElementById("giveMoney").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const amount = prompt("Montant"); if (!amount) return;
         runCommand(`give money ${player} ${amount}`);
-
     };
-
-    document.getElementById("giveGems").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const amount=prompt("Gemmes");
-        if(!amount)return;
-
+ 
+    document.getElementById("giveGems").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const amount = prompt("Gemmes"); if (!amount) return;
         runCommand(`give gems ${player} ${amount}`);
-
     };
-
-    document.getElementById("giveXP").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const amount=prompt("XP");
-        if(!amount)return;
-
+ 
+    document.getElementById("giveXP").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const amount = prompt("XP"); if (!amount) return;
         runCommand(`give xp ${player} ${amount}`);
-
     };
-
-    document.getElementById("giveUnits").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const unit=prompt("Unité\ninfantry\narmor\nheavy\njet\ncarrier\ndrone\nartillery\nhelicopter\nsubmarine\nmissile");
-        if(!unit)return;
-
-        const amount=prompt("Quantité");
-        if(!amount)return;
-
+ 
+    document.getElementById("giveUnits").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const unit = prompt("Unité\ninfantry\narmor\nheavy\njet\ncarrier\ndrone\nartillery\nhelicopter\nsubmarine\nmissile");
+        if (!unit) return;
+        const amount = prompt("Quantité"); if (!amount) return;
         runCommand(`give units ${player} ${unit} ${amount}`);
-
     };
-
-    document.getElementById("setMoney").onclick=()=>{
-
-        const p=prompt("Pseudo");
-        const a=prompt("Argent");
-
-        if(!p||!a)return;
-
+ 
+    document.getElementById("setMoney").onclick = () => {
+        const p = prompt("Pseudo"); const a = prompt("Argent");
+        if (!p || !a) return;
         runCommand(`set money ${p} ${a}`);
-
     };
-
-    document.getElementById("setGems").onclick=()=>{
-
-        const p=prompt("Pseudo");
-        const a=prompt("Gemmes");
-
-        if(!p||!a)return;
-
+ 
+    document.getElementById("setGems").onclick = () => {
+        const p = prompt("Pseudo"); const a = prompt("Gemmes");
+        if (!p || !a) return;
         runCommand(`set gems ${p} ${a}`);
-
     };
-
-    document.getElementById("setXP").onclick=()=>{
-
-        const p=prompt("Pseudo");
-        const a=prompt("XP");
-
-        if(!p||!a)return;
-
+ 
+    document.getElementById("setXP").onclick = () => {
+        const p = prompt("Pseudo"); const a = prompt("XP");
+        if (!p || !a) return;
         runCommand(`set xp ${p} ${a}`);
-
     };
-
-    document.getElementById("setLevel").onclick=()=>{
-
-        const p=prompt("Pseudo");
-        const a=prompt("Niveau");
-
-        if(!p||!a)return;
-
+ 
+    document.getElementById("setLevel").onclick = () => {
+        const p = prompt("Pseudo"); const a = prompt("Niveau");
+        if (!p || !a) return;
         runCommand(`set level ${p} ${a}`);
-
     };
-
-    document.getElementById("resetPlayer").onclick=()=>{
-
-        const p=prompt("Pseudo");
-
-        if(!p)return;
-
-        if(confirm("Réinitialiser "+p+" ?"))
-            runCommand(`reset ${p}`);
-
+ 
+    document.getElementById("resetPlayer").onclick = () => {
+        const p = prompt("Pseudo"); if (!p) return;
+        if (confirm("Réinitialiser " + p + " ?")) runCommand(`reset ${p}`);
     };
-
-    document.getElementById("deletePlayer").onclick=()=>{
-
-        const p=prompt("Pseudo");
-
-        if(!p)return;
-
-        if(confirm("Supprimer définitivement "+p+" ?"))
-            runCommand(`delete ${p}`);
-
+ 
+    document.getElementById("deletePlayer").onclick = () => {
+        const p = prompt("Pseudo"); if (!p) return;
+        if (confirm("Supprimer définitivement " + p + " ?")) runCommand(`delete ${p}`);
     };
-
-    document.getElementById("playerInfo").onclick=()=>{
-
-        const p=prompt("Pseudo");
-
-        if(!p)return;
-
+ 
+    document.getElementById("playerInfo").onclick = () => {
+        const p = prompt("Pseudo"); if (!p) return;
         runCommand(`get ${p}`);
-
     };
-
-    document.getElementById("listAccounts").onclick=()=>{
-
+ 
+    document.getElementById("listAccounts").onclick = () => {
         runCommand("list accounts");
-
-    };    /* ---------- STOCKS ---------- */
-
-    document.getElementById("stockFill").onclick=()=>{
-        runCommand("stock fill");
     };
-
-    document.getElementById("stockEmpty").onclick=()=>{
-        runCommand("stock empty");
-    };
-
-    document.getElementById("stockReset").onclick=()=>{
-        runCommand("stock reset");
-    };
-
-    document.getElementById("stockAdd").onclick=()=>{
-
-        const resource=prompt("Ressource");
-        if(!resource)return;
-
-        const amount=prompt("Quantité");
-        if(!amount)return;
-
+ 
+    /* ---------- STOCKS ---------- */
+ 
+    document.getElementById("stockFill").onclick = () => runCommand("stock fill");
+    document.getElementById("stockEmpty").onclick = () => runCommand("stock empty");
+    document.getElementById("stockReset").onclick = () => runCommand("stock reset");
+ 
+    document.getElementById("stockAdd").onclick = () => {
+        const resource = prompt("Ressource"); if (!resource) return;
+        const amount = prompt("Quantité"); if (!amount) return;
         runCommand(`stock add ${resource} ${amount}`);
-
     };
-
-    document.getElementById("stockRemove").onclick=()=>{
-
-        const resource=prompt("Ressource");
-        if(!resource)return;
-
-        const amount=prompt("Quantité");
-        if(!amount)return;
-
+ 
+    document.getElementById("stockRemove").onclick = () => {
+        const resource = prompt("Ressource"); if (!resource) return;
+        const amount = prompt("Quantité"); if (!amount) return;
         runCommand(`stock remove ${resource} ${amount}`);
-
     };
-
-    document.getElementById("stockInfo").onclick=()=>{
-
-        runCommand("stock get");
-
-    };
-
-
-
+ 
+    document.getElementById("stockInfo").onclick = () => runCommand("stock get");
+ 
     /* ---------- BONUS ---------- */
-
-    document.getElementById("bonusMoney").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const mult=prompt("Multiplicateur");
-        if(!mult)return;
-
-        const duration=prompt("Durée (secondes)");
-        if(!duration)return;
-
+ 
+    document.getElementById("bonusMoney").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const mult = prompt("Multiplicateur"); if (!mult) return;
+        const duration = prompt("Durée (secondes)"); if (!duration) return;
         runCommand(`bonus money ${player} ${mult} ${duration}`);
-
     };
-
-    document.getElementById("bonusXP").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const mult=prompt("Multiplicateur");
-        if(!mult)return;
-
-        const duration=prompt("Durée (secondes)");
-        if(!duration)return;
-
+ 
+    document.getElementById("bonusXP").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const mult = prompt("Multiplicateur"); if (!mult) return;
+        const duration = prompt("Durée (secondes)"); if (!duration) return;
         runCommand(`bonus xp ${player} ${mult} ${duration}`);
-
     };
-
-    document.getElementById("bonusProduction").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
-        const mult=prompt("Multiplicateur");
-        if(!mult)return;
-
-        const duration=prompt("Durée (secondes)");
-        if(!duration)return;
-
+ 
+    document.getElementById("bonusProduction").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
+        const mult = prompt("Multiplicateur"); if (!mult) return;
+        const duration = prompt("Durée (secondes)"); if (!duration) return;
         runCommand(`bonus production ${player} ${mult} ${duration}`);
-
     };
-
-    document.getElementById("bonusRemove").onclick=()=>{
-
-        const player=prompt("Pseudo");
-        if(!player)return;
-
+ 
+    document.getElementById("bonusRemove").onclick = () => {
+        const player = prompt("Pseudo"); if (!player) return;
         runCommand(`bonus remove ${player}`);
-
     };
-
-
-
+ 
     /* ---------- EVENEMENTS ---------- */
-
-    document.getElementById("eventMoney").onclick=()=>{
-
-        runCommand("event start doublemoney");
-
-    };
-
-    document.getElementById("eventXP").onclick=()=>{
-
-        runCommand("event start doublexp");
-
-    };
-
-    document.getElementById("eventProduction").onclick=()=>{
-
-        runCommand("event start production");
-
-    };
-
-    document.getElementById("eventStop").onclick=()=>{
-
-        runCommand("event stop");
-
-    };
-
-
-
+ 
+    document.getElementById("eventMoney").onclick = () => runCommand("event start doublemoney");
+    document.getElementById("eventXP").onclick = () => runCommand("event start doublexp");
+    document.getElementById("eventProduction").onclick = () => runCommand("event start production");
+    document.getElementById("eventStop").onclick = () => runCommand("event stop");
+ 
     /* ---------- MESSAGES ---------- */
-
-    document.getElementById("broadcast").onclick=()=>{
-
-        const msg=prompt("Message à envoyer");
-
-        if(!msg)return;
-
+ 
+    document.getElementById("broadcast").onclick = () => {
+        const msg = prompt("Message à envoyer (s'affichera en popup chez tous les joueurs)");
+        if (!msg) return;
         runCommand(`broadcast ${msg}`);
-
     };
-
-    document.getElementById("motd").onclick=()=>{
-
-        const msg=prompt("Message d'accueil");
-
-        if(!msg)return;
-
+ 
+    document.getElementById("motd").onclick = () => {
+        const msg = prompt("Message d'accueil");
+        if (!msg) return;
         runCommand(`motd ${msg}`);
-
     };
-
-    document.getElementById("clearMessages").onclick=()=>{
-
-        if(confirm("Supprimer tous les messages ?")){
-
-            runCommand("clear messages");
-
-        }
-
+ 
+    document.getElementById("clearMessages").onclick = () => {
+        if (confirm("Supprimer tous les messages ?")) runCommand("clear messages");
     };
-
-
-
+ 
     /* ---------- SERVEUR ---------- */
-
-    document.getElementById("resetAll").onclick=()=>{
-
-        if(confirm("Réinitialiser TOUS les comptes ?")){
-
-            runCommand("reset all");
-
-        }
-
+ 
+    document.getElementById("resetAll").onclick = () => {
+        if (confirm("Réinitialiser TOUS les comptes ?")) runCommand("reset all");
     };
-
-    document.getElementById("wipe").onclick=()=>{
-
-        if(confirm("⚠ Cette action supprimera TOUTES les données.\nContinuer ?")){
-
-            runCommand("wipe all");
-
-        }
-
+ 
+    document.getElementById("wipe").onclick = () => {
+        if (confirm("⚠ Cette action supprimera TOUTES les données.\nContinuer ?")) runCommand("wipe all");
     };
-
 }
 /* ============================ SHOP ============================ */
 function renderShop(){
