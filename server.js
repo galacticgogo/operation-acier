@@ -1071,7 +1071,23 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/healthz') {
       return sendJson(res, 200, { status: 'ok' });
     }
+    // Servir les icônes et autres fichiers statiques
+if (req.method === 'GET' && url.pathname.startsWith('/icons/')) {
+  const filePath = path.join(ROOT, url.pathname);
 
+  if (fs.existsSync(filePath)) {
+    const ext = path.extname(filePath).toLowerCase();
+    const types = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.ico': 'image/x-icon',
+      '.svg': 'image/svg+xml'
+    };
+
+    return sendFile(res, filePath, types[ext] || 'application/octet-stream');
+  }
+}
     if (req.method === 'GET' && url.pathname === '/') {
       return sendFile(res, GAME_FILE, 'text/html; charset=utf-8');
     }
