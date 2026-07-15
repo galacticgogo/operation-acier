@@ -362,7 +362,10 @@ function isAdmin(auth) {
 }
 
 function ensureStock() {
-  if (!store.stock) store.stock = { ...STOCK_DEFAULTS };
+  if (!store.stock) store.stock = {
+    ...UNIT_DEFS,
+    ...FACTORY_DEFS
+  };
   return store.stock;
 }
  
@@ -404,7 +407,7 @@ async function executeAdminCommand(command, auth) {
     await saveStore();
     return { ok: true, message: `${amount} gemmes donnees a ${targetName}` };
   }
- 
+  
   // give units <name> <unitId> <amount>
   if (cmd === 'give' && parts[1] === 'units' && parts[2] && parts[3] && parts[4]) {
     const targetName = parts[2];
