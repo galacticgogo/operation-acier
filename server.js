@@ -6,7 +6,7 @@ const { Pool } = require('pg');
 
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
-const GAME_FILE = path.join(ROOT, 'jeux');
+const GAME_FILE = path.join(ROOT, 'jeux.html');
 const DATA_FILE = path.join(ROOT, 'data.json');
 const DATABASE_URL = process.env.DATABASE_URL || '';
 let pool = DATABASE_URL
