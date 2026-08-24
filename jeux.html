@@ -232,6 +232,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
       <canvas id="mapCanvas"></canvas>
       <div id="mapHint">Glisse pour déplacer • Molette pour zoomer • Clique une mission</div>
       <button class="btn secondary" id="mapOpenBtn">Options carte</button>
+      <button class="btn secondary" id="mapAdminBtn" style="position:absolute;top:16px;right:16px;width:auto;padding:8px 14px;display:none;z-index:6;">Admin</button>
       <div class="field-row" id="mapControls" style="display:none;">
         <select id="difficultySelect">
           <option value="easy">Normal facile</option>
@@ -816,12 +817,12 @@ function getTerrainColor(height) {
   return '#a89a6a';
 }
 const mapPlaces = [
-  { view: 'shop', label: 'BOUTIQUE', icon: '$', color: '#e8a33d', x: -210, y: -115 },
-  { view: 'market', label: 'MARCHÉ', icon: 'M', color: '#4fc3c9', x: 210, y: -115 },
-  { view: 'progress', label: 'CENTRE DE COMMANDEMENT', icon: 'PC', color: '#7fae5c', x: -215, y: 95 },
-  { view: 'quests', label: 'MISSIONS', icon: '!', color: '#e8a33d', x: 215, y: 95 },
-  { view: 'clan', label: 'QG DU CLAN', icon: 'C', color: '#c1473b', x: -65, y: -205 },
-  { view: 'board', label: 'CLASSEMENT', icon: '#', color: '#a9a690', x: 65, y: -205 },
+  { view: 'shop', label: 'BOUTIQUE', type: 'shop', color: '#e8a33d', x: -280, y: -130 },
+  { view: 'market', label: 'MARCHÉ', type: 'market', color: '#4fc3c9', x: 280, y: -130 },
+  { view: 'progress', label: 'COMMANDEMENT', type: 'command', color: '#7fae5c', x: -285, y: 130 },
+  { view: 'quests', label: 'MISSIONS', type: 'quest', color: '#e8a33d', x: 285, y: 130 },
+  { view: 'clan', label: 'QG CLAN', type: 'clan', color: '#c1473b', x: -95, y: -265 },
+  { view: 'board', label: 'CLASSEMENT', type: 'board', color: '#a9a690', x: 95, y: -265 },
 ];
 const canvas = document.getElementById('mapCanvas');
 const mapContext = canvas.getContext('2d');
@@ -883,11 +884,44 @@ function drawMap(){
   mapContext.setLineDash([5, 8]); mapContext.strokeStyle = 'rgba(232,163,61,.28)'; mapContext.beginPath();
   levelNodes.forEach(node=>{ const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale; mapContext.lineTo(x,y); });
   mapContext.stroke(); mapContext.setLineDash([]);
-  const drawMarker = (x, y, color, label, icon) => {
-    mapContext.fillStyle = 'rgba(8,9,6,.88)'; mapContext.beginPath(); mapContext.arc(x,y,24*mapScale,0,Math.PI*2); mapContext.fill();
-    mapContext.fillStyle = color; mapContext.beginPath(); mapContext.arc(x,y,16*mapScale,0,Math.PI*2); mapContext.fill();
-    mapContext.fillStyle = '#0c0d09'; mapContext.font = 'bold 15px Oswald'; mapContext.textAlign='center'; mapContext.textBaseline='middle'; mapContext.fillText(icon,x,y);
-    mapContext.fillStyle = '#ece7d6'; mapContext.font = '12px Oswald'; mapContext.fillText(label,x,y+33*mapScale);
+  const drawMarker = (x, y, color, label, type, size = 1) => {
+    const radius = 28 * mapScale * size;
+    mapContext.fillStyle = 'rgba(8,9,6,.82)';
+    mapContext.beginPath(); mapContext.arc(x, y, radius + 8 * mapScale, 0, Math.PI * 2); mapContext.fill();
+    mapContext.fillStyle = color; mapContext.beginPath(); mapContext.arc(x, y, radius, 0, Math.PI * 2); mapContext.fill();
+    mapContext.save();
+    mapContext.translate(x, y);
+    mapContext.scale(mapScale * size, mapScale * size);
+    mapContext.strokeStyle = '#0c0d09'; mapContext.lineWidth = 2.5;
+    mapContext.fillStyle = '#f6efe3';
+    switch(type) {
+      case 'shop':
+        mapContext.fillStyle = '#f7d99d';
+        mapContext.fillRect(-9, -3, 18, 12); mapContext.beginPath(); mapContext.moveTo(-11, -3); mapContext.lineTo(0, -12); mapContext.lineTo(11, -3); mapContext.closePath(); mapContext.fill();
+        mapContext.fillStyle = '#b87418'; mapContext.fillRect(-6, 8, 12, 8); break;
+      case 'market':
+        mapContext.fillStyle = '#d8f8ff';
+        mapContext.beginPath(); mapContext.arc(0, -2, 9, 0, Math.PI * 2); mapContext.fill();
+        mapContext.fillStyle = '#4fc3c9'; mapContext.fillRect(-10, 5, 20, 9); mapContext.fillRect(-3, 10, 6, 10); break;
+      case 'command':
+        mapContext.fillStyle = '#dff7c4'; mapContext.beginPath(); mapContext.moveTo(0, -12); mapContext.lineTo(11, -2); mapContext.lineTo(7, 12); mapContext.lineTo(-7, 12); mapContext.lineTo(-11, -2); mapContext.closePath(); mapContext.fill(); break;
+      case 'quest':
+        mapContext.fillStyle = '#f4e4a4'; mapContext.beginPath(); mapContext.moveTo(0, -12); mapContext.lineTo(7, -2); mapContext.lineTo(13, 0); mapContext.lineTo(7, 12); mapContext.lineTo(-7, 12); mapContext.lineTo(-13, 0); mapContext.lineTo(-7, -2); mapContext.closePath(); mapContext.fill();
+        mapContext.strokeStyle = '#5f4300'; mapContext.beginPath(); mapContext.moveTo(-4, -3); mapContext.lineTo(0, 10); mapContext.lineTo(4, -3); mapContext.stroke(); break;
+      case 'clan':
+        mapContext.fillStyle = '#f9d2d2'; mapContext.beginPath(); mapContext.moveTo(0, -12); mapContext.lineTo(11, -6); mapContext.lineTo(10, 10); mapContext.lineTo(0, 14); mapContext.lineTo(-10, 10); mapContext.lineTo(-11, -6); mapContext.closePath(); mapContext.fill();
+        mapContext.strokeStyle = '#782525'; mapContext.beginPath(); mapContext.moveTo(-4,-4); mapContext.lineTo(0,8); mapContext.lineTo(4,-4); mapContext.stroke(); break;
+      case 'board':
+        mapContext.fillStyle = '#e6e1d2'; mapContext.fillRect(-10, -9, 20, 18); mapContext.fillStyle = '#8a8a7d'; mapContext.fillRect(-8, -4, 16, 3); mapContext.fillRect(-8, 3, 16, 3); break;
+      case 'factory':
+        mapContext.fillStyle = '#d7f8f5'; mapContext.fillRect(-10, -8, 20, 16); mapContext.fillStyle = '#5db3b2'; mapContext.fillRect(-7, -12, 14, 5); mapContext.fillRect(-3, 9, 6, 8); break;
+      case 'army':
+        mapContext.fillStyle = '#f8d2d5'; mapContext.beginPath(); mapContext.moveTo(-8, 10); mapContext.lineTo(0,-12); mapContext.lineTo(8,10); mapContext.lineTo(0,13); mapContext.closePath(); mapContext.fill(); break;
+      default:
+        mapContext.fillStyle = '#fff'; mapContext.beginPath(); mapContext.arc(0, 0, 8, 0, Math.PI*2); mapContext.fill();
+    }
+    mapContext.restore();
+    mapContext.fillStyle = '#ece7d6'; mapContext.font = '12px Oswald'; mapContext.textAlign='center'; mapContext.textBaseline='middle'; mapContext.fillText(label, x, y + 38 * mapScale * size);
   };
   const drawAvatar = () => {
     const x = centerX, y = centerY;
@@ -898,14 +932,14 @@ function drawMap(){
     mapContext.fillStyle = '#ece7d6'; mapContext.font = 'bold 13px Oswald'; mapContext.textAlign='center'; mapContext.fillText(profile ? profile.name : 'COMMANDANT',x,y+49*mapScale);
   };
   drawAvatar();
-  mapPlaces.forEach(place => drawMarker(centerX + place.x * mapScale, centerY + place.y * mapScale, place.color, place.label, place.icon));
+  mapPlaces.forEach(place => drawMarker(centerX + place.x * mapScale, centerY + place.y * mapScale, place.color, place.label, place.type, 1.05));
   (profile && profile.factories ? Object.entries(profile.factories) : []).forEach(([id, count], index) => {
     if(!count) return;
     const angle = -1.8 + index * 1.1;
-    drawMarker(centerX + Math.cos(angle) * 105 * mapScale, centerY + Math.sin(angle) * 105 * mapScale, '#4fc3c9', `${count} usine${count > 1 ? 's' : ''}`, 'US');
+    drawMarker(centerX + Math.cos(angle) * 150 * mapScale, centerY + Math.sin(angle) * 150 * mapScale, '#4fc3c9', `${count} usine${count > 1 ? 's' : ''}`, 'factory', 1.05);
   });
   const armyCount = profile ? totalUnits(profile) : 0;
-  if(armyCount) drawMarker(centerX + 125 * mapScale, centerY - 105 * mapScale, '#c1473b', `${armyCount} unité${armyCount > 1 ? 's' : ''}`, 'AR');
+  if(armyCount) drawMarker(centerX + 190 * mapScale, centerY - 135 * mapScale, '#c1473b', `${armyCount} unité${armyCount > 1 ? 's' : ''}`, 'army', 1.08);
   levelNodes.forEach(node=>{
     const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale;
     const completed = profile && profile.levelsCompleted[node.index];
@@ -1824,11 +1858,17 @@ async function renderBoard(){
 }
 
 /* ============================ HUD / TICK ============================ */
+const ADMIN_ACCOUNT_NAME = 'GalacticGogo9';
+function isAdminAccount(account){
+  if(!account || !account.name) return false;
+  return account.name === ADMIN_ACCOUNT_NAME;
+}
 function refreshHUD(){
   const adminBtn = document.getElementById('adminBtn');
-  if(adminBtn){
-    adminBtn.style.display = profile.name === 'GalacticGogo9' ? 'block' : 'none';
-  }
+  const mapAdminBtn = document.getElementById('mapAdminBtn');
+  const showAdmin = isAdminAccount(profile);
+  if(adminBtn){ adminBtn.style.display = showAdmin ? 'block' : 'none'; }
+  if(mapAdminBtn){ mapAdminBtn.style.display = showAdmin ? 'block' : 'none'; }
   drawMap();
 }
 function afterChange(){ refreshHUD(); saveProfile(); }
@@ -1853,6 +1893,16 @@ const mapControls = document.getElementById('mapControls');
 document.getElementById('mapControlsModal').appendChild(mapControls);
 mapControls.style.display = 'flex';
 document.getElementById('mapOpenBtn').onclick = ()=> mapModal.classList.add('show');
+document.getElementById('mapAdminBtn').onclick = ()=> {
+  document.querySelectorAll('.navbtn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const adminNav = document.getElementById('adminBtn');
+  if(adminNav) adminNav.classList.add('active');
+  const adminView = document.getElementById('view-admin');
+  if(adminView) adminView.classList.add('active');
+  document.getElementById('viewCloseBtn').classList.toggle('show', true);
+  renderAdmin();
+};
 document.getElementById('mapModalClose').onclick = ()=> mapModal.classList.remove('show');
 document.getElementById('mapModalX').onclick = ()=> mapModal.classList.remove('show');
 document.getElementById('profileModalX').onclick = ()=> profileModal.classList.remove('show');
