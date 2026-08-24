@@ -30,7 +30,7 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 #app{display:flex;flex-direction:column;height:100vh;width:100vw;}
 
 /* HEADER */
-#hdr{position:fixed;top:12px;right:16px;z-index:40;}
+#hdr{position:fixed;top:12px;right:16px;z-index:40;display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid rgba(154,156,102,.35);background:rgba(12,13,9,.72);backdrop-filter:blur(8px);border-radius:999px;box-shadow:0 10px 24px rgba(0,0,0,.28);}
 
 /* NAV */
 #nav{display:none;}
@@ -63,7 +63,8 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 #sidePanel .sp-body{padding:16px;flex:1;overflow-y:auto;}
 #sidePanel .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;}
 #sidePanel .row b{color:var(--amber);}
-#mapOpenBtn{position:absolute;top:12px;right:12px;width:auto;margin:0;padding:8px 14px;font-size:17px;z-index:3;}
+#mapOpenBtn,#mapAdminBtn,#logoutBtn{width:auto;margin:0;padding:8px 14px;font-size:17px;border-radius:999px;box-shadow:0 8px 18px rgba(0,0,0,.22);transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;}
+#mapOpenBtn:hover,#mapAdminBtn:hover,#logoutBtn:hover{transform:translateY(-1px);box-shadow:0 12px 22px rgba(0,0,0,.28);}
 #viewCloseBtn{position:fixed;top:12px;left:16px;display:none;width:38px;height:38px;margin:0;padding:0;font-size:25px;line-height:1;z-index:40;}
 #viewCloseBtn.show{display:block;}
 #mapModal,#profileModal{position:fixed;inset:0;background:rgba(8,9,6,.82);display:none;align-items:center;justify-content:center;z-index:80;}
@@ -212,6 +213,8 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
 
 <div id="app" style="display:none;">
   <div id="hdr">
+    <button class="btn secondary" id="mapOpenBtn">Options carte</button>
+    <button class="btn secondary" id="mapAdminBtn" style="display:none;">Admin</button>
     <button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button>
   </div>
 
@@ -231,8 +234,6 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <div class="view active" id="view-map">
       <canvas id="mapCanvas"></canvas>
       <div id="mapHint">Glisse pour déplacer • Molette pour zoomer • Clique une mission</div>
-      <button class="btn secondary" id="mapOpenBtn">Options carte</button>
-      <button class="btn secondary" id="mapAdminBtn" style="position:absolute;top:16px;right:16px;width:auto;padding:8px 14px;display:none;z-index:6;">Admin</button>
       <div class="field-row" id="mapControls" style="display:none;">
         <select id="difficultySelect">
           <option value="easy">Normal facile</option>
@@ -866,12 +867,28 @@ function drawMap(){
   const height = canvas.clientHeight || window.innerHeight;
   mapContext.clearRect(0, 0, width, height);
   const renderTerrainTile = (tx, ty, tsize) => {
-    const h = sampleTerrain(tx - mapOffset.x, ty - mapOffset.y);
+    const px = tx - mapOffset.x;
+    const py = ty - mapOffset.y;
+    const h = sampleTerrain(px, py);
     mapContext.fillStyle = getTerrainColor(h);
     mapContext.fillRect(tx, ty, tsize, tsize);
-    if (h > 0.75 && Math.abs(Math.sin((tx - mapOffset.x) * 0.02) * Math.sin((ty - mapOffset.y) * 0.02)) < 0.15) {
-      mapContext.fillStyle = 'rgba(120,140,100,.5)';
-      mapContext.fillRect(tx + 4, ty + 4, 2, 2);
+    if (h < 0.3) {
+      mapContext.fillStyle = 'rgba(143, 211, 255, 0.18)';
+      mapContext.fillRect(tx + tsize * 0.2, ty + tsize * 0.25, tsize * 0.6, tsize * 0.4);
+    }
+    if (h > 0.55 && Math.abs(Math.sin(px * 0.07) * Math.cos(py * 0.06)) < 0.2) {
+      mapContext.fillStyle = 'rgba(36, 64, 32, 0.45)';
+      mapContext.fillRect(tx + 5, ty + 5, 4, 4);
+      mapContext.fillRect(tx + 15, ty + 10, 4, 4);
+    }
+    if (h > 0.7 && Math.abs(Math.sin(px * 0.12) + Math.cos(py * 0.11)) < 0.2) {
+      mapContext.fillStyle = 'rgba(100, 94, 68, 0.5)';
+      mapContext.fillRect(tx + 9, ty + 8, 2, 7);
+      mapContext.fillRect(tx + 12, ty + 6, 3, 10);
+    }
+    if (Math.abs(Math.sin((px + py) * 0.25)) < 0.12 && h > 0.35 && h < 0.75) {
+      mapContext.fillStyle = 'rgba(16, 23, 18, 0.3)';
+      mapContext.beginPath(); mapContext.arc(tx + 22, ty + 20, 5, 0, Math.PI * 2); mapContext.fill();
     }
   };
   const tileSize = 32;
@@ -881,6 +898,31 @@ function drawMap(){
     }
   }
   const centerX = width / 2 + mapOffset.x, centerY = height / 2 + mapOffset.y;
+  mapContext.save();
+  mapContext.strokeStyle = 'rgba(176, 147, 92, 0.55)';
+  mapContext.lineWidth = 5;
+  mapContext.lineCap = 'round';
+  mapContext.beginPath();
+  mapContext.moveTo(centerX - 210, centerY + 20);
+  mapContext.quadraticCurveTo(centerX - 80, centerY - 10, centerX + 10, centerY + 30);
+  mapContext.quadraticCurveTo(centerX + 150, centerY + 60, centerX + 285, centerY + 90);
+  mapContext.stroke();
+  mapContext.strokeStyle = 'rgba(64, 111, 140, 0.6)';
+  mapContext.lineWidth = 7;
+  mapContext.beginPath();
+  mapContext.moveTo(centerX + 230, centerY - 180);
+  mapContext.quadraticCurveTo(centerX + 140, centerY - 40, centerX - 120, centerY + 170);
+  mapContext.stroke();
+  mapContext.fillStyle = 'rgba(255,255,255,0.08)';
+  mapContext.beginPath(); mapContext.arc(centerX - 260, centerY - 210, 65, 0, Math.PI * 2); mapContext.fill();
+  mapContext.beginPath(); mapContext.arc(centerX + 300, centerY + 190, 75, 0, Math.PI * 2); mapContext.fill();
+  mapContext.restore();
+  mapContext.fillStyle = 'rgba(235,230,215,0.85)';
+  mapContext.font = '600 14px Oswald';
+  mapContext.textAlign = 'center';
+  mapContext.fillText('BASE PRINCIPALE', centerX, centerY - 78 * mapScale);
+  mapContext.fillText('NORD', centerX + 250 * mapScale, centerY - 200 * mapScale);
+  mapContext.fillText('RIVIÈRE', centerX + 250 * mapScale, centerY + 190 * mapScale);
   mapContext.setLineDash([5, 8]); mapContext.strokeStyle = 'rgba(232,163,61,.28)'; mapContext.beginPath();
   levelNodes.forEach(node=>{ const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale; mapContext.lineTo(x,y); });
   mapContext.stroke(); mapContext.setLineDash([]);

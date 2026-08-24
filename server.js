@@ -119,8 +119,26 @@ async function ensureInitialized() {
 
 function saveStoreToFile() {
   const tmpFile = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(tmpFile, JSON.stringify(store, null, 2), 'utf8');
-  fs.renameSync(tmpFile, DATA_FILE);
+  const backupFile = `${DATA_FILE}.bak`;
+
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      fs.copyFileSync(DATA_FILE, backupFile);
+    }
+    fs.writeFileSync(tmpFile, JSON.stringify(store, null, 2), 'utf8');
+    fs.renameSync(tmpFile, DATA_FILE);
+    if (fs.existsSync(backupFile)) {
+      fs.unlinkSync(backupFile);
+    }
+  } catch (error) {
+    if (fs.existsSync(tmpFile)) {
+      try { fs.unlinkSync(tmpFile); } catch {}
+    }
+    if (fs.existsSync(backupFile) && !fs.existsSync(DATA_FILE)) {
+      try { fs.copyFileSync(backupFile, DATA_FILE); } catch {}
+    }
+    throw error;
+  }
 }
 
 async function saveStore() {
