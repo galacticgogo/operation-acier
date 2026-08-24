@@ -6,7 +6,6 @@
 <title>OPÉRATION ACIER</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root{
   --ink:#0c0d09;
@@ -66,6 +65,7 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 
 /* MAP VIEW */
 #mapCanvas{width:100%;height:100%;display:block;cursor:grab;}
+#mapCanvas:active{cursor:grabbing;}
 #mapHint{position:absolute;top:10px;left:10px;background:rgba(12,13,9,.7);border:1px solid var(--line);
   padding:6px 10px;font-size:12px;color:var(--khaki);border-radius:3px;pointer-events:none;}
 #sidePanel{
@@ -80,6 +80,16 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 #sidePanel .sp-body{padding:16px;flex:1;overflow-y:auto;}
 #sidePanel .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:14px;}
 #sidePanel .row b{color:var(--amber);}
+#mapOpenBtn{position:absolute;top:12px;right:12px;width:auto;margin:0;padding:8px 14px;font-size:17px;z-index:3;}
+#mapModal,#profileModal{position:fixed;inset:0;background:rgba(8,9,6,.82);display:none;align-items:center;justify-content:center;z-index:80;}
+#mapModal.show,#profileModal.show{display:flex;}
+.modal-box{background:var(--panel);border:1px solid var(--line);padding:22px;width:360px;max-width:calc(100vw - 28px);border-radius:5px;box-shadow:0 12px 30px rgba(0,0,0,.5);}
+.modal-box h2{margin:0 0 14px;color:var(--amber);font-size:28px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.modal-actions .btn{width:auto;margin:0;padding:8px 14px;font-size:17px;}
+#profileBtn{width:auto;margin:0;padding:4px 9px;font-size:16px;display:flex;align-items:center;gap:7px;}
+.avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--amber);background:var(--panel2);}
+#profilePreview{width:82px;height:82px;border-radius:50%;object-fit:cover;border:2px solid var(--amber);background:var(--panel2);display:block;margin:0 auto 14px;}
 .btn{
   display:block;width:100%;text-align:center;padding:12px;margin-top:14px;background:var(--amber);
   color:var(--ink);border:none;font-family:'Teko',sans-serif;font-size:22px;letter-spacing:1px;
@@ -226,7 +236,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
       <div class="stat lvl"><span class="ic">🏅</span><span class="v" id="statLevel">1</span></div>
       <div class="stat"><span class="ic">⚔️</span><span class="v" id="statPower">0</span></div>
     </div>
-    <button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button>
+    <div style="display:flex;align-items:center;gap:8px;"><button class="btn secondary" id="profileBtn"><span id="profileAvatarWrap"></span><span>Profil</span></button><button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button></div>
   </div>
 
   <div id="nav">
@@ -243,8 +253,9 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
   <div id="main">
     <div class="view active" id="view-map">
       <canvas id="mapCanvas"></canvas>
-      <div id="mapHint">Glisse pour pivoter • Clique une base ennemie (🟡 disponible · 🟢 conquise · ⚪ verrouillée)</div>
-      <div class="field-row" id="mapControls" style="position:absolute;top:52px;left:10px;z-index:2;background:rgba(12,13,9,.75);padding:8px;border:1px solid var(--line);border-radius:4px;">
+      <div id="mapHint">Glisse pour déplacer • Molette pour zoomer • Clique une mission</div>
+      <button class="btn secondary" id="mapOpenBtn">Options carte</button>
+      <div class="field-row" id="mapControls" style="display:none;">
         <select id="difficultySelect">
           <option value="easy">Normal facile</option>
           <option value="normal" selected>Normal</option>
@@ -274,6 +285,9 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <div class="view" id="view-board"><div class="pview" id="boardBody"></div></div>
     <div class="view" id="view-admin"><div class="pview" id="adminBody"></div></div>
   </div>
+
+  <div id="mapModal" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle"><div class="modal-box"><h2 id="mapModalTitle" class="display">Options de carte</h2><div id="mapControlsModal"></div><div class="modal-actions"><button class="btn secondary" id="mapModalClose">Fermer</button></div></div></div>
+  <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle"><div class="modal-box"><h2 id="profileModalTitle" class="display">Profil du commandant</h2><img id="profilePreview" alt="Photo de profil"><div id="profileName" style="text-align:center;color:var(--paper-dim);font-size:13px;margin-bottom:12px;"></div><input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" style="width:100%;color:var(--paper);"><div id="avatarStatus" style="min-height:18px;color:var(--paper-dim);font-size:12px;margin-top:8px;"></div><div class="modal-actions"><button class="btn secondary" id="profileModalClose">Fermer</button><button class="btn" id="avatarSave">Enregistrer</button></div></div></div>
 
   <div id="globalChat" class="hidden">
     <div id="chatHead">
@@ -787,102 +801,81 @@ async function saveClans(clans){
   }
 }
 
-/* ============================ THREE.JS MAP ============================ */
-let scene, camera, renderer, raycaster, mouse;
+/* ============================ 2D MAP ============================ */
 let levelNodes = [];
-let rotY = 0.4, rotX = -0.45, dragging=false, lastX=0,lastY=0;
+let mapScale = 1, mapOffset = { x: 0, y: 0 }, dragging = false, moved = false, lastX = 0, lastY = 0;
 const canvas = document.getElementById('mapCanvas');
+const mapContext = canvas.getContext('2d');
 
 function initMap(){
-  scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0c0d09, 0.018);
-  camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 1000);
-  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
-  renderer.setClearColor(0x0c0d09,1);
-  resizeRenderer();
-
-  const amb = new THREE.AmbientLight(0x6c6e48, 0.9);
-  scene.add(amb);
-  const dir = new THREE.DirectionalLight(0xe8a33d, 1.1);
-  dir.position.set(8,14,6);
-  scene.add(dir);
-
-  // layout nodes in spiral
-  const group = new THREE.Group();
-  for(let i=0;i<LEVEL_COUNT;i++){
-    const ang = i*0.85;
-    const rad = 3 + i*1.55;
-    const x = Math.cos(ang)*rad;
-    const z = Math.sin(ang)*rad;
-    const y = Math.sin(i*0.7)*0.6;
-
-    const baseGeo = new THREE.CylinderGeometry(1.1,1.3,0.5,6);
-    const baseMat = new THREE.MeshStandardMaterial({color:0x3a3d29, flatShading:true});
-    const base = new THREE.Mesh(baseGeo, baseMat);
-    base.position.set(x,y,z);
-    group.add(base);
-
-    const towerGeo = new THREE.ConeGeometry(0.55,1.1,4);
-    const towerMat = new THREE.MeshStandardMaterial({color:0x9a9c66, flatShading:true});
-    const tower = new THREE.Mesh(towerGeo, towerMat);
-    tower.position.set(x,y+0.75,z);
-    group.add(tower);
-
-    levelNodes.push({mesh:base, tower, index:i, x,y,z});
-
-    const hitGeo = new THREE.SphereGeometry(1.6, 8, 8);
-    const hitMat = new THREE.MeshBasicMaterial({visible:false});
-    const hitbox = new THREE.Mesh(hitGeo, hitMat);
-    hitbox.position.set(x,y+0.4,z);
-    hitbox.userData.levelIndex = i;
-    group.add(hitbox);
-    levelNodes[levelNodes.length-1].hitbox = hitbox;
-  }
-  scene.add(group);
-  window.__mapGroup = group;
-
-  camera.position.set(0, 18, 24);
-  camera.lookAt(0,0,0);
-
-  raycaster = new THREE.Raycaster();
-  mouse = new THREE.Vector2();
+  levelNodes = Array.from({length: LEVEL_COUNT}, (_, index) => {
+    const angle = index * 0.82 - 0.8;
+    const radius = 52 + index * 25;
+    return { index, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+  });
 
   canvas.addEventListener('pointerdown', e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;});
-  window.addEventListener('pointerup', ()=>dragging=false);
+  window.addEventListener('pointerup', ()=>{ dragging=false; });
   window.addEventListener('pointermove', e=>{
     if(dragging){
-      rotY += (e.clientX-lastX)*0.005;
-      rotX = Math.max(-1.1, Math.min(-0.15, rotX + (e.clientY-lastY)*0.003));
+      moved = true;
+      mapOffset.x += e.clientX-lastX;
+      mapOffset.y += e.clientY-lastY;
       lastX=e.clientX; lastY=e.clientY;
+      drawMap();
     }
   });
-  canvas.addEventListener('click', onMapClick);
+  canvas.addEventListener('click', e=>{ if(!moved) onMapClick(e); moved=false; });
+  canvas.addEventListener('wheel', e=>{ e.preventDefault(); mapScale = Math.max(.65, Math.min(1.8, mapScale + (e.deltaY < 0 ? .1 : -.1))); drawMap(); }, {passive:false});
   window.addEventListener('resize', resizeRenderer);
-
-  animateMap();
+  drawMap();
 }
 function resizeRenderer(){
+  const ratio = window.devicePixelRatio || 1;
   const w = canvas.clientWidth || window.innerWidth;
   const h = canvas.clientHeight || window.innerHeight;
-  renderer.setSize(w,h,false);
-  camera.aspect = w/h;
-  camera.updateProjectionMatrix();
+  canvas.width = w * ratio;
+  canvas.height = h * ratio;
+  mapContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+  drawMap();
 }
-function animateMap(){
-  requestAnimationFrame(animateMap);
-  const dist = 30;
-  camera.position.x = Math.sin(rotY)*dist*Math.cos(rotX+1.0);
-  camera.position.z = Math.cos(rotY)*dist*Math.cos(rotX+1.0);
-  camera.position.y = 14 + Math.sin(rotX)*14;
-  camera.lookAt(0,0,0);
-  // pulse towers based on state
-  levelNodes.forEach(n=>{
-    const completed = profile && profile.levelsCompleted[n.index];
-    const unlocked = isUnlocked(n.index);
-    const col = completed ? 0x7fae5c : (unlocked ? 0xe8a33d : 0x4a4d33);
-    n.tower.material.color.setHex(col);
+function drawMap(){
+  if(!mapContext) return;
+  const width = canvas.clientWidth || window.innerWidth;
+  const height = canvas.clientHeight || window.innerHeight;
+  mapContext.clearRect(0, 0, width, height);
+  mapContext.fillStyle = '#10130d'; mapContext.fillRect(0, 0, width, height);
+  mapContext.strokeStyle = 'rgba(154,156,102,.12)'; mapContext.lineWidth = 1;
+  for(let x = (mapOffset.x % 48) - 48; x < width + 48; x += 48){ mapContext.beginPath(); mapContext.moveTo(x,0); mapContext.lineTo(x,height); mapContext.stroke(); }
+  for(let y = (mapOffset.y % 48) - 48; y < height + 48; y += 48){ mapContext.beginPath(); mapContext.moveTo(0,y); mapContext.lineTo(width,y); mapContext.stroke(); }
+  const centerX = width / 2 + mapOffset.x, centerY = height / 2 + mapOffset.y;
+  mapContext.setLineDash([5, 8]); mapContext.strokeStyle = 'rgba(232,163,61,.28)'; mapContext.beginPath();
+  levelNodes.forEach(node=>{ const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale; mapContext.lineTo(x,y); });
+  mapContext.stroke(); mapContext.setLineDash([]);
+  const drawMarker = (x, y, color, label, icon) => {
+    mapContext.fillStyle = 'rgba(8,9,6,.88)'; mapContext.beginPath(); mapContext.arc(x,y,24*mapScale,0,Math.PI*2); mapContext.fill();
+    mapContext.fillStyle = color; mapContext.beginPath(); mapContext.arc(x,y,16*mapScale,0,Math.PI*2); mapContext.fill();
+    mapContext.fillStyle = '#0c0d09'; mapContext.font = 'bold 15px Oswald'; mapContext.textAlign='center'; mapContext.textBaseline='middle'; mapContext.fillText(icon,x,y);
+    mapContext.fillStyle = '#ece7d6'; mapContext.font = '12px Oswald'; mapContext.fillText(label,x,y+33*mapScale);
+  };
+  drawMarker(centerX, centerY, '#e8a33d', 'QG COMMANDANT', 'QG');
+  (profile && profile.factories ? Object.entries(profile.factories) : []).forEach(([id, count], index) => {
+    if(!count) return;
+    const angle = -1.8 + index * 1.1;
+    drawMarker(centerX + Math.cos(angle) * 105 * mapScale, centerY + Math.sin(angle) * 105 * mapScale, '#4fc3c9', `${count} usine${count > 1 ? 's' : ''}`, 'US');
   });
-  renderer.render(scene, camera);
+  const armyCount = profile ? totalUnits(profile) : 0;
+  if(armyCount) drawMarker(centerX + 125 * mapScale, centerY - 105 * mapScale, '#c1473b', `${armyCount} unité${armyCount > 1 ? 's' : ''}`, 'AR');
+  levelNodes.forEach(node=>{
+    const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale;
+    const completed = profile && profile.levelsCompleted[node.index];
+    const unlocked = profile && isUnlocked(node.index);
+    const color = completed ? '#7fae5c' : (unlocked ? '#e8a33d' : '#4a4d33');
+    mapContext.fillStyle = 'rgba(8,9,6,.8)'; mapContext.beginPath(); mapContext.arc(x,y,25*mapScale,0,Math.PI*2); mapContext.fill();
+    mapContext.fillStyle = color; mapContext.beginPath(); mapContext.arc(x,y,17*mapScale,0,Math.PI*2); mapContext.fill();
+    mapContext.fillStyle = '#0c0d09'; mapContext.font = 'bold 14px Oswald'; mapContext.textAlign='center'; mapContext.textBaseline='middle'; mapContext.fillText(String(node.index+1),x,y);
+    mapContext.fillStyle = '#ece7d6'; mapContext.font = '12px Oswald'; mapContext.fillText(LEVEL_NAMES[node.index],x,y+34*mapScale);
+  });
 }
 function isUnlocked(i){
   if(i===0) return true;
@@ -890,16 +883,10 @@ function isUnlocked(i){
 }
 function onMapClick(e){
   const rect = canvas.getBoundingClientRect();
-  mouse.x = ((e.clientX-rect.left)/rect.width)*2-1;
-  mouse.y = -((e.clientY-rect.top)/rect.height)*2+1;
-  raycaster.setFromCamera(mouse, camera);
-  const meshes = levelNodes.map(n=>n.hitbox);
-  const hits = raycaster.intersectObjects(meshes);
-  if(hits.length){
-    const hit = hits[0].object;
-    const node = levelNodes.find(n=>n.hitbox===hit);
-    if(node) openLevelPanel(node.index);
-  }
+  const x = (e.clientX - rect.left - rect.width/2 - mapOffset.x) / mapScale;
+  const y = (e.clientY - rect.top - rect.height/2 - mapOffset.y) / mapScale;
+  const node = levelNodes.find(item => Math.hypot(item.x-x, item.y-y) < 28);
+  if(node) openLevelPanel(node.index);
 }
 
 function battleDifficultyConfig(){
@@ -1784,6 +1771,8 @@ function refreshHUD(){
   if(adminBtn){
     adminBtn.style.display = profile.name === 'GalacticGogo9' ? 'block' : 'none';
   }
+  const avatarWrap = document.getElementById('profileAvatarWrap');
+  if(avatarWrap) avatarWrap.innerHTML = profile.avatar ? `<img class="avatar" src="${profile.avatar}" alt="Photo de ${escapeHtml(profile.name)}">` : `<span class="avatar" style="display:inline-flex;align-items:center;justify-content:center;color:var(--amber);">${escapeHtml(profile.name.slice(0, 1).toUpperCase())}</span>`;
 }
 function afterChange(){ refreshHUD(); saveProfile(); }
 
@@ -1801,6 +1790,51 @@ setInterval(()=>{
 document.getElementById('loginBtn').onclick = ()=> doLogin('login');
 document.getElementById('registerBtn').onclick = ()=> doLogin('register');
 document.getElementById('logoutBtn').onclick = ()=> logout();
+const mapModal = document.getElementById('mapModal');
+const profileModal = document.getElementById('profileModal');
+const mapControls = document.getElementById('mapControls');
+document.getElementById('mapControlsModal').appendChild(mapControls);
+mapControls.style.display = 'flex';
+document.getElementById('mapOpenBtn').onclick = ()=> mapModal.classList.add('show');
+document.getElementById('mapModalClose').onclick = ()=> mapModal.classList.remove('show');
+document.getElementById('profileBtn').onclick = ()=>{
+  document.getElementById('profileName').textContent = profile.name;
+  const preview = document.getElementById('profilePreview');
+  preview.src = profile.avatar || '';
+  preview.style.visibility = profile.avatar ? 'visible' : 'hidden';
+  document.getElementById('avatarInput').value = '';
+  document.getElementById('avatarStatus').textContent = profile.avatar ? 'Photo actuelle' : 'Aucune photo définie';
+  profileModal.classList.add('show');
+};
+document.getElementById('profileModalClose').onclick = ()=> profileModal.classList.remove('show');
+document.getElementById('avatarInput').onchange = e=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(file.size > 500000) { e.target.value = ''; document.getElementById('avatarStatus').textContent = 'Image trop lourde (500 Ko maximum).'; return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    document.getElementById('profilePreview').src = reader.result;
+    document.getElementById('profilePreview').style.visibility = 'visible';
+    document.getElementById('avatarStatus').textContent = 'Nouvelle photo prête à être enregistrée.';
+  };
+  reader.readAsDataURL(file);
+};
+document.getElementById('avatarSave').onclick = async ()=>{
+  const file = document.getElementById('avatarInput').files && document.getElementById('avatarInput').files[0];
+  if(!file) return profileModal.classList.remove('show');
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    profile.avatar = reader.result;
+    await saveProfile();
+    refreshHUD();
+    profileModal.classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+};
+window.addEventListener('click', e=>{
+  if(e.target === mapModal) mapModal.classList.remove('show');
+  if(e.target === profileModal) profileModal.classList.remove('show');
+});
 document.getElementById('nameInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
 document.getElementById('passwordInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin('login'); });
 document.getElementById('difficultySelect').value = 'normal';

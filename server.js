@@ -192,6 +192,7 @@ function accountKey(name) {
 function defaultProfile(name) {
   return {
     name,
+    avatar: null,
     clan: null,
     money: 2000,
     gems: 25,
@@ -227,6 +228,7 @@ function normalizeProfile(profile, name) {
     ...base,
     ...source,
     name: source.name || name,
+    avatar: typeof source.avatar === 'string' && /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(source.avatar) && source.avatar.length <= 700000 ? source.avatar : null,
     clan: source.clan || null,
     xp: Math.max(0, Number(source.xp) || 0),
     commanderLevel,
