@@ -1,0 +1,14 @@
+-- OPERATION ACIER - portage Roblox
+--
+-- Installation dans Roblox Studio :
+-- 1. Cree ReplicatedStorage.Config comme ModuleScript et colle le contenu de Config.lua.
+-- 2. Cree ServerScriptService.Services comme Folder.
+-- 3. Place les quatre modules Services dans ce dossier.
+-- 4. Place Main.server.lua et Admin.server.lua dans ServerScriptService.
+-- 5. Place Map.client.lua dans StarterPlayer > StarterPlayerScripts.
+-- 6. Remplace 0 dans Config.AdminUserIds par ton UserId Roblox.
+-- 7. Active Game Settings > Security > Enable Studio Access to API Services pour tester DataStore en Studio.
+-- 8. Publie l'experience avant de tester DataStore.
+--
+-- Le serveur reste autoritaire : argent, missions et permissions admin ne sont
+-- jamais decides uniquement par le client.
