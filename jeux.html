@@ -777,7 +777,7 @@ async function saveClans(clans){
 
 /* ============================ 2D MAP ============================ */
 let levelNodes = [];
-let mapScale = 1, mapOffset = { x: 0, y: 0 }, dragging = false, moved = false, lastX = 0, lastY = 0;
+let mapScale = 0.72, mapOffset = { x: 0, y: 0 }, dragging = false, moved = false, lastX = 0, lastY = 0;
 const mapPlaces = [
   { view: 'shop', label: 'BOUTIQUE', icon: '$', color: '#e8a33d', x: -210, y: -115 },
   { view: 'market', label: 'MARCHÉ', icon: 'M', color: '#4fc3c9', x: 210, y: -115 },
@@ -810,12 +810,13 @@ function initMap(){
   canvas.addEventListener('click', e=>{ if(!moved) onMapClick(e); moved=false; });
   canvas.addEventListener('wheel', e=>{ e.preventDefault(); mapScale = Math.max(.65, Math.min(1.8, mapScale + (e.deltaY < 0 ? .1 : -.1))); drawMap(); }, {passive:false});
   window.addEventListener('resize', resizeRenderer);
-  drawMap();
+  resizeRenderer();
 }
 function resizeRenderer(){
   const ratio = window.devicePixelRatio || 1;
   const w = canvas.clientWidth || window.innerWidth;
   const h = canvas.clientHeight || window.innerHeight;
+  if (!canvas.width) mapScale = Math.min(.82, Math.max(.62, Math.min(w / 1400, h / 900)));
   canvas.width = w * ratio;
   canvas.height = h * ratio;
   mapContext.setTransform(ratio, 0, 0, ratio, 0, 0);
