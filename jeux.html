@@ -31,6 +31,10 @@ html,body{margin:0;padding:0;background:var(--ink);color:var(--paper);font-famil
 
 /* HEADER */
 #hdr{position:fixed;top:12px;right:16px;z-index:40;display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid rgba(154,156,102,.35);background:rgba(12,13,9,.72);backdrop-filter:blur(8px);border-radius:999px;box-shadow:0 10px 24px rgba(0,0,0,.28);}
+#mapHud{position:absolute;top:12px;left:64px;z-index:10;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100% - 420px);pointer-events:none;}
+.hud-pill{pointer-events:auto;background:rgba(12,13,9,.68);border:1px solid rgba(154,156,102,.28);border-radius:999px;padding:6px 10px;display:flex;align-items:center;gap:8px;min-width:110px;box-shadow:0 8px 20px rgba(0,0,0,.18);}
+.hud-pill span{color:var(--paper-dim);font-size:11px;text-transform:uppercase;letter-spacing:1px;}
+.hud-pill strong{color:var(--paper);font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;}
 
 /* NAV */
 #nav{display:none;}
@@ -217,6 +221,7 @@ table.lb td.rank{color:var(--amber-dim);font-family:'JetBrains Mono';width:30px;
     <button class="btn secondary" id="mapAdminBtn" style="display:none;">Admin</button>
     <button class="btn secondary" id="logoutBtn" style="width:auto;padding:8px 14px;font-size:16px;">Déconnexion</button>
   </div>
+  <div id="mapHud"></div>
 
   <div id="nav">
     <button class="navbtn active" data-view="map">Carte</button>
@@ -381,6 +386,10 @@ async function apiRequest(path, options={}){
   return payload;
 }
 
+function formatNumber(value) {
+  const v = Number(value || 0);
+  return v >= 1000000 ? `${(v / 1000000).toFixed(1).replace(/\.0$/, '')}M` : (v >= 1000 ? `${(v / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(v));
+}
 function totalUnits(p){ return UNIT_DEFS.reduce((s,u)=>s+p.units[u.id],0); }
 function computePower(p){
   let pw = p.bonusPower||0;
@@ -884,6 +893,21 @@ function drawMap(){
   const width = canvas.clientWidth || window.innerWidth;
   const height = canvas.clientHeight || window.innerHeight;
   mapContext.clearRect(0, 0, width, height);
+
+  const sky = mapContext.createLinearGradient(0, 0, 0, height);
+  sky.addColorStop(0, '#101811');
+  sky.addColorStop(0.5, '#13220f');
+  sky.addColorStop(1, '#0b0d09');
+  mapContext.fillStyle = sky;
+  mapContext.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < 30; i++) {
+    const px = ((i * 173.7) % (width + 200)) - 100;
+    const py = ((i * 89.3) % (height + 200)) - 100;
+    mapContext.fillStyle = `rgba(255,255,255,${0.08 + (i % 5) * 0.03})`;
+    mapContext.beginPath(); mapContext.arc(px, py, 1.6 + (i % 3), 0, Math.PI * 2); mapContext.fill();
+  }
+
   const renderTerrainTile = (tx, ty, tsize) => {
     const px = tx - mapOffset.x;
     const py = ty - mapOffset.y;
@@ -891,7 +915,7 @@ function drawMap(){
     mapContext.fillStyle = getTerrainColor(h);
     mapContext.fillRect(tx, ty, tsize, tsize);
     if (h < 0.3) {
-      mapContext.fillStyle = 'rgba(143, 211, 255, 0.18)';
+      mapContext.fillStyle = 'rgba(143, 211, 255, 0.2)';
       mapContext.fillRect(tx + tsize * 0.2, ty + tsize * 0.25, tsize * 0.6, tsize * 0.4);
     }
     if (h > 0.55 && Math.abs(Math.sin(px * 0.07) * Math.cos(py * 0.06)) < 0.2) {
@@ -915,28 +939,34 @@ function drawMap(){
       renderTerrainTile(tx, ty, tileSize);
     }
   }
+
   const centerX = width / 2 + mapOffset.x, centerY = height / 2 + mapOffset.y;
   mapContext.save();
   mapContext.strokeStyle = 'rgba(176, 147, 92, 0.55)';
-  mapContext.lineWidth = 5;
-  mapContext.lineCap = 'round';
+  mapContext.lineWidth = 5; mapContext.lineCap = 'round';
   mapContext.beginPath();
   mapContext.moveTo(centerX - 210, centerY + 20);
   mapContext.quadraticCurveTo(centerX - 80, centerY - 10, centerX + 10, centerY + 30);
   mapContext.quadraticCurveTo(centerX + 150, centerY + 60, centerX + 285, centerY + 90);
   mapContext.stroke();
-  mapContext.strokeStyle = 'rgba(64, 111, 140, 0.6)';
+
+  mapContext.strokeStyle = 'rgba(64, 111, 140, 0.65)';
   mapContext.lineWidth = 7;
   mapContext.beginPath();
   mapContext.moveTo(centerX + 230, centerY - 180);
   mapContext.quadraticCurveTo(centerX + 140, centerY - 40, centerX - 120, centerY + 170);
   mapContext.stroke();
+
   mapContext.fillStyle = 'rgba(255,255,255,0.08)';
   mapContext.beginPath(); mapContext.arc(centerX - 260, centerY - 210, 65, 0, Math.PI * 2); mapContext.fill();
   mapContext.beginPath(); mapContext.arc(centerX + 300, centerY + 190, 75, 0, Math.PI * 2); mapContext.fill();
+
+  mapContext.fillStyle = 'rgba(255,255,255,0.06)';
+  mapContext.beginPath(); mapContext.arc(centerX - 150, centerY - 140, 90, 0, Math.PI * 2); mapContext.fill();
   mapContext.restore();
+
   mapContext.fillStyle = 'rgba(235,230,215,0.85)';
-  mapContext.font = '600 14px Oswald';
+  mapContext.font = '600 15px Oswald';
   mapContext.textAlign = 'center';
   mapContext.fillText('BASE PRINCIPALE', centerX, centerY - 78 * mapScale);
   mapContext.fillText('NORD', centerX + 250 * mapScale, centerY - 200 * mapScale);
@@ -1929,6 +1959,15 @@ function refreshHUD(){
   const showAdmin = isAdminAccount(profile);
   if(adminBtn){ adminBtn.style.display = showAdmin ? 'block' : 'none'; }
   if(mapAdminBtn){ mapAdminBtn.style.display = showAdmin ? 'block' : 'none'; }
+  const hud = document.getElementById('mapHud');
+  if(hud && profile){
+    hud.innerHTML = `
+      <div class="hud-pill"><span>Argent</span><strong>${formatNumber(profile.money || 0)}</strong></div>
+      <div class="hud-pill"><span>Gemmes</span><strong>${formatNumber(profile.gems || 0)}</strong></div>
+      <div class="hud-pill"><span>Pop</span><strong>${formatNumber(profile.population || 0)}</strong></div>
+      <div class="hud-pill"><span>Niveau</span><strong>${formatNumber(profile.commanderLevel || 1)}</strong></div>
+    `;
+  }
   drawMap();
 }
 function afterChange(){ refreshHUD(); saveProfile(); }
