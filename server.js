@@ -2,19 +2,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { Pool } = require('pg');
 
 const PORT = Number(process.env.PORT || 8080);
 const ROOT = __dirname;
 const GAME_FILE = path.join(ROOT, 'jeux.html');
 const DATA_FILE = path.join(ROOT, 'data.json');
-const DATABASE_URL = process.env.DATABASE_URL || '';
-let pool = DATABASE_URL
-  ? new Pool({
-      connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    })
-  : null;
 const LEVEL_COUNT = 20;
 const HIDDEN_LEADERBOARD_ACCOUNTS = new Set(['galacticgogo9']);
 const SEED_ACCOUNT_NAME = 'GalacticGogo9';
@@ -108,37 +100,7 @@ async function ackBroadcast(messageId, auth) {
 async function initializeStore() {
   removeTestAccounts();
   ensureSeedAccount();
-  if (!pool) {
-    await saveStore();
-    return;
-  }
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS game_state (
-        id TEXT PRIMARY KEY,
-        payload JSONB NOT NULL
-      )
-    `);
-    const result = await pool.query('SELECT payload FROM game_state WHERE id = $1', ['store']);
-    if (result.rowCount > 0 && result.rows[0] && result.rows[0].payload) {
-      const loaded = normalizeStore(result.rows[0].payload);
-      loaded.clans = Object.fromEntries(Object.entries(loaded.clans).map(([clanName, clan]) => [clanName, normalizeClan(clanName, clan)]));
-      loaded.marketListings = loaded.marketListings.map(normalizeMarketListing);
-      store = loaded;
-    }
-    ensureSeedAccount();
-    await saveStore();
-  } catch (error) {
-    console.error('Database unavailable, falling back to file storage:', error);
-    if (pool) {
-      try {
-        await pool.end();
-      } catch {}
-    }
-    pool = null;
-    ensureSeedAccount();
-    await saveStore();
-  }
+  await saveStore();
 }
 
 async function ensureInitialized() {
@@ -162,22 +124,6 @@ function saveStoreToFile() {
 }
 
 async function saveStore() {
-  if (pool) {
-    try {
-      await pool.query(
-        `
-          INSERT INTO game_state (id, payload)
-          VALUES ($1, $2)
-          ON CONFLICT (id)
-          DO UPDATE SET payload = EXCLUDED.payload
-        `,
-        ['store', store],
-      );
-      return;
-    } catch (error) {
-      console.error('Database save failed, falling back to file storage:', error);
-    }
-  }
   saveStoreToFile();
 }
 
@@ -937,6 +883,29 @@ function sendFile(res, filePath, contentType) {
   });
 }
 
+function publicStoreExport() {
+  return {
+    ...store,
+    accounts: Object.fromEntries(Object.entries(store.accounts).map(([key, account]) => [key, {
+      name: account.name,
+      profile: normalizeProfile(account.profile, account.name),
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    }])),
+    sessions: {},
+  };
+}
+
+function sendDownload(res, filename, payload) {
+  const content = JSON.stringify(payload, null, 2);
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Cache-Control': 'no-store',
+  });
+  res.end(content);
+}
+
 function getToken(req) {
   const header = req.headers.authorization || '';
   const match = header.match(/^Bearer\s+(.+)$/i);
@@ -1249,6 +1218,12 @@ if (req.method === 'GET' && url.pathname.startsWith('/icons/')) {
 
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
       return sendJson(res, 200, { entries: leaderboardEntries() });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/admin/export') {
+      const auth = requireAuth(req);
+      if (!auth || !isAdmin(auth)) return sendJson(res, 403, { error: 'Acces admin requis.' });
+      return sendDownload(res, 'operation-acier-data.json', publicStoreExport());
     }
 
     if (req.method === 'POST' && url.pathname === '/api/admin/command') {
