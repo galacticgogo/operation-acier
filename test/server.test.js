@@ -180,3 +180,67 @@ test('startup removes test accounts from persisted state and leaderboard', async
     fs.writeFileSync(dataPath, originalData);
   }
 });
+
+test('profile persistence survives save and admin-only access is enforced', async () => {
+  const repoRoot = path.join(__dirname, '..');
+  const dataPath = path.join(repoRoot, 'data.json');
+  const originalData = fs.readFileSync(dataPath, 'utf8');
+
+  try {
+    const child = spawn(process.execPath, ['server.js'], {
+      cwd: repoRoot,
+      env: { ...process.env, PORT: '3105' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    try {
+      await waitForServer('http://127.0.0.1:3105/healthz');
+
+      const newName = `Persist${Date.now()}`;
+      const registerResponse = await fetch('http://127.0.0.1:3105/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName, password: 'secret123' }),
+      });
+      assert.equal(registerResponse.status, 200);
+      const registerBody = await registerResponse.json();
+      const token = registerBody.token;
+
+      const profileUpdate = await fetch('http://127.0.0.1:3105/api/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...registerBody.profile,
+          money: 43210,
+          gems: 654,
+          population: 777,
+        }),
+      });
+      assert.equal(profileUpdate.status, 200);
+
+      const persistedProfile = await fetch('http://127.0.0.1:3105/api/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(persistedProfile.status, 200);
+      const persisted = await persistedProfile.json();
+      assert.equal(persisted.profile.money, 43210);
+      assert.equal(persisted.profile.gems, 654);
+
+      const adminExportResponse = await fetch('http://127.0.0.1:3105/api/admin/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(adminExportResponse.status, 403);
+
+      const persistedStore = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+      assert.equal(persistedStore.accounts[`${newName}`.toLowerCase()].profile.money, 43210);
+    } finally {
+      child.kill('SIGTERM');
+      await new Promise((resolve) => child.once('exit', resolve));
+    }
+  } finally {
+    fs.writeFileSync(dataPath, originalData);
+  }
+});

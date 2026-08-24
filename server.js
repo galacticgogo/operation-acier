@@ -974,6 +974,9 @@ function getProfileForAccount(account) {
 
 async function upsertAccount(name, password) {
   const key = accountKey(name);
+  if (accountKey(name) === accountKey(SEED_ACCOUNT_NAME)) {
+    throw new Error('Nom réservé.');
+  }
   if (store.accounts[key]) {
     const existing = store.accounts[key];
     const token = createSession(existing.name);

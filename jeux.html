@@ -464,6 +464,12 @@ function addCommanderXp(profile, amount){
 function syncProfileEconomy(profile){
   const now = Date.now();
   const merged = mergeProfile(profile, profile.name);
+  if (isAdminAccount(merged)) {
+    merged.money = 999999999;
+    merged.gems = 999999;
+    merged.population = 999999;
+    merged.bonusPower = Math.max(merged.bonusPower || 0, 5000000);
+  }
   const elapsed = Math.max(0, now - (merged.lastTick || now));
   if(elapsed > 0){
     const income = factoryIncomePerSecond(merged) * (elapsed/1000);
@@ -475,6 +481,11 @@ function syncProfileEconomy(profile){
       merged.bank.lastTick = now;
     }
     merged.lastTick = now;
+  }
+  if (isAdminAccount(merged)) {
+    merged.money = 999999999;
+    merged.gems = 999999;
+    merged.population = 999999;
   }
   merged.commanderLevel = commanderLevelFromXp(merged.xp);
   return merged;
@@ -490,7 +501,14 @@ async function loadProfile(name){
   return defaultProfile(name);
 }
 async function saveProfile(){
-  try{ await apiRequest('/api/me', { method:'PUT', body: profile }); }catch(e){ console.error('save failed',e); }
+  try{
+    if (isAdminAccount(profile)) {
+      profile.money = 999999999;
+      profile.gems = 999999;
+      profile.population = 999999;
+    }
+    await apiRequest('/api/me', { method:'PUT', body: profile });
+  }catch(e){ console.error('save failed',e); }
 }
 
 function commanderLevelValue(){
