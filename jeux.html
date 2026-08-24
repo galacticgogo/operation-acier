@@ -781,6 +781,40 @@ async function saveClans(clans){
 /* ============================ 2D MAP ============================ */
 let levelNodes = [];
 let mapScale = 0.72, mapOffset = { x: 0, y: 0 }, dragging = false, moved = false, lastX = 0, lastY = 0;
+const terrainCache = {};
+function seededRandom(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+function getTerrainHeight(x, y, scale = 1) {
+  const grid = Math.floor(scale);
+  const key = `${grid}_${Math.floor(x/grid)}_${Math.floor(y/grid)}`;
+  if (!terrainCache[key]) {
+    const seed = Math.floor(x/grid) * 73856093 ^ Math.floor(y/grid) * 19349663;
+    terrainCache[key] = seededRandom(seed);
+  }
+  return terrainCache[key];
+}
+function sampleTerrain(x, y) {
+  let height = 0;
+  let freq = 60;
+  let amp = 1;
+  for (let i = 0; i < 3; i++) {
+    height += getTerrainHeight(x / freq, y / freq, 1) * amp;
+    freq *= 0.5;
+    amp *= 0.5;
+  }
+  return Math.min(1, Math.max(0, height));
+}
+function getTerrainColor(height) {
+  if (height < 0.2) return '#1a3a52';
+  if (height < 0.35) return '#2a5a6b';
+  if (height < 0.5) return '#3d6b4a';
+  if (height < 0.65) return '#5a8b4a';
+  if (height < 0.75) return '#7a8b3a';
+  if (height < 0.85) return '#8a7a4a';
+  return '#a89a6a';
+}
 const mapPlaces = [
   { view: 'shop', label: 'BOUTIQUE', icon: '$', color: '#e8a33d', x: -210, y: -115 },
   { view: 'market', label: 'MARCHÉ', icon: 'M', color: '#4fc3c9', x: 210, y: -115 },
@@ -830,10 +864,21 @@ function drawMap(){
   const width = canvas.clientWidth || window.innerWidth;
   const height = canvas.clientHeight || window.innerHeight;
   mapContext.clearRect(0, 0, width, height);
-  mapContext.fillStyle = '#10130d'; mapContext.fillRect(0, 0, width, height);
-  mapContext.strokeStyle = 'rgba(154,156,102,.12)'; mapContext.lineWidth = 1;
-  for(let x = (mapOffset.x % 48) - 48; x < width + 48; x += 48){ mapContext.beginPath(); mapContext.moveTo(x,0); mapContext.lineTo(x,height); mapContext.stroke(); }
-  for(let y = (mapOffset.y % 48) - 48; y < height + 48; y += 48){ mapContext.beginPath(); mapContext.moveTo(0,y); mapContext.lineTo(width,y); mapContext.stroke(); }
+  const renderTerrainTile = (tx, ty, tsize) => {
+    const h = sampleTerrain(tx - mapOffset.x, ty - mapOffset.y);
+    mapContext.fillStyle = getTerrainColor(h);
+    mapContext.fillRect(tx, ty, tsize, tsize);
+    if (h > 0.75 && Math.abs(Math.sin((tx - mapOffset.x) * 0.02) * Math.sin((ty - mapOffset.y) * 0.02)) < 0.15) {
+      mapContext.fillStyle = 'rgba(120,140,100,.5)';
+      mapContext.fillRect(tx + 4, ty + 4, 2, 2);
+    }
+  };
+  const tileSize = 32;
+  for (let tx = -tileSize; tx < width + tileSize; tx += tileSize) {
+    for (let ty = -tileSize; ty < height + tileSize; ty += tileSize) {
+      renderTerrainTile(tx, ty, tileSize);
+    }
+  }
   const centerX = width / 2 + mapOffset.x, centerY = height / 2 + mapOffset.y;
   mapContext.setLineDash([5, 8]); mapContext.strokeStyle = 'rgba(232,163,61,.28)'; mapContext.beginPath();
   levelNodes.forEach(node=>{ const x=centerX+node.x*mapScale, y=centerY+node.y*mapScale; mapContext.lineTo(x,y); });
